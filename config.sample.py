@@ -20,3 +20,6 @@ _3PAR = {
     'password': '3pardata',
     'secure': True
 }
+
+# export volumes to host - backup host name defined in 3PAR
+EXPORT_HOST = 'backup.hostname'
