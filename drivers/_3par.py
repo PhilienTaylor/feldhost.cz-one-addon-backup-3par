@@ -1,8 +1,11 @@
+import os
+import subprocess
+import sys
 import time
-
 from hpe3parclient import client, exceptions
 import config
 
+base_path = os.path.abspath(os.path.dirname(sys.argv[0]))
 cl = client.HPE3ParClient(config._3PAR['api'], False, config._3PAR['secure'], None, True)
 
 
@@ -81,15 +84,22 @@ def backup_live(one, image, data_store, vm, vm_disk_id, verbose):
             i += 1
             time.sleep(5)
 
-    # export VV to backup server
+    # export volume to backup server
     if verbose:
         print 'Snapshot %d:%s created.' % (snap_id, snap_name)
         print 'Exporting snapshot to backup server...'
     lun_no = export_vv(snap_name, config.EXPORT_HOST)
-    wwn = volume.get('wwn')
+    wwn = volume.get('wwn').lower()
 
     if verbose:
-        print 'Snapshot is exported as LUN %d with WWN %s on %s' % (lun_no, wwn, config.EXPORT_HOST)
+        print 'Snapshot is exported as LUN %d with WWN %s on %s. Discovering LUN...' % (lun_no, wwn, config.EXPORT_HOST)
+
+    # discover volume
+    try:
+        subprocess.check_call('%s/sh/discover_lun.sh %d %s' % (base_path, lun_no, wwn), shell=True)
+    except subprocess.CalledProcessError as ex:
+        raise Exception('Can not discover LUN on host: %s', ex)
+
 
 
 
