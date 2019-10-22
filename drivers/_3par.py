@@ -54,6 +54,21 @@ def export_vv(name, host):
             time.sleep(5)
 
 
+def unexport_vv(name, host):
+    # check if VLUN exists
+    found = False
+    vluns = cl.getHostVLUNs(host)
+    for vlun in vluns:
+        if vlun.get('volumeName') == name:
+            found = True
+            break
+
+    if found == False:
+        return
+
+    cl.deleteVLUN(name, vlun.get('lun'), host)
+
+
 def backup_live(one, image, data_store, vm, vm_disk_id, verbose):
     # create live snapshot of image
     if verbose:
@@ -98,8 +113,24 @@ def backup_live(one, image, data_store, vm, vm_disk_id, verbose):
     try:
         subprocess.check_call('%s/sh/discover_lun.sh %d %s' % (base_path, lun_no, wwn), shell=True)
     except subprocess.CalledProcessError as ex:
-        raise Exception('Can not discover LUN on host: %s', ex)
+        raise Exception('Can not discover LUN', ex)
 
+    # backup
+    # TODO
+    if verbose:
+        print 'TODO: Backuping image....'
 
+    # flush volume
+    if verbose:
+        print 'Flushing LUN...'
+    try:
+        subprocess.check_call('%s/sh/flush_lun.sh %s' % (base_path, wwn), shell=True)
+    except subprocess.CalledProcessError as ex:
+        raise Exception('Can not flush LUN', ex)
+
+    # unexport volume
+    if verbose:
+        print 'Unexporting snapshot from backup server...'
+    unexport_vv(snap_name, config.EXPORT_HOST)
 
 
