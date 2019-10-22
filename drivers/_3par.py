@@ -76,7 +76,7 @@ def backup_live(one, image, data_store, vm, vm_disk_id, verbose):
     snap_id = one.vm.disksnapshotcreate(vm.ID, vm_disk_id, 'Automatic Backup')
 
     if snap_id is False:
-        raise Exception('Error creating snapshot!')
+        raise Exception('Error creating snapshot! Check VM logs.')
 
     # get source name and create snap name
     name = vv_name(image.SOURCE)
@@ -95,7 +95,7 @@ def backup_live(one, image, data_store, vm, vm_disk_id, verbose):
         except exceptions.HTTPNotFound:
             # failed after 60s
             if i > 11:
-                raise Exception('Looks like snapshot is not created. Investigate VM logs')
+                raise Exception('Looks like snapshot is not created. Check VM logs.')
             i += 1
             time.sleep(5)
 
@@ -132,5 +132,11 @@ def backup_live(one, image, data_store, vm, vm_disk_id, verbose):
     if verbose:
         print 'Unexporting snapshot from backup server...'
     unexport_vv(snap_name, config.EXPORT_HOST)
+
+    # delete snapshot
+    if verbose:
+        print 'Deleting snapshot...'
+    if not one.vm.disksnapshotdelete(vm.ID, vm_disk_id, snap_id):
+        raise Exception('Can not delete snapshot! Check VM logs.')
 
 
