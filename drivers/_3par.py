@@ -122,9 +122,12 @@ def backup_live(one, image, vm, vm_disk_id, verbose):
         raise Exception('Can not discover LUN', ex)
 
     # backup
-    # TODO
     if verbose:
-        print 'TODO: Backuping image....'
+        print 'Backuping image....'
+    dev = '/dev/mapper/3%s' % wwn
+    result = borgbackup(name, dev)
+    if verbose:
+        print result
 
     # flush volume
     if verbose:
@@ -165,9 +168,12 @@ def backup(image, verbose):
         raise Exception('Can not discover LUN', ex)
 
     # backup
-    # TODO
     if verbose:
-        print 'TODO: Backuping image....'
+        print 'Backuping image....'
+    dev = '/dev/mapper/3%s' % wwn
+    result = borgbackup(name, dev)
+    if verbose:
+        print result
 
     # flush volume
     if verbose:
@@ -181,3 +187,10 @@ def backup(image, verbose):
     if verbose:
         print 'Unexporting volume %s from backup server...' % name
     unexport_vv(name, config.EXPORT_HOST)
+
+
+def borgbackup(name, dev):
+    try:
+        return subprocess.check_output('borg create -v --stats --read-special %s::%s-{now} %s' % (config.BACKUP_REPO, name, dev), shell=True)
+    except subprocess.CalledProcessError as ex:
+        raise Exception('Can not backup dev using borgbackup!', ex)

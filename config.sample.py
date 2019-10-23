@@ -5,8 +5,8 @@ ONE = {
     'password': 'pass'
 }
 
-# Path where to save backups on backup server
-BACKUP_DIR = '/var/data/backups/'
+# Path to borgbackup repo
+BACKUP_REPO = '/var/data/backups/'
 
 # Lock Image and VM during backup
 # OpenNebula 5.6+ required
