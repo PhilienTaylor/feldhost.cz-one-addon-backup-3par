@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
 import argparse
-import pprint
+import datetime
+import time
 
 import config
 import pyone
@@ -50,6 +51,15 @@ for image_key in images:
     if datastore.TM_MAD != '3par':
         continue
 
+    # set info abut backup start to image template
+    one.image.update(image.ID, 'BACKUP_IN_PROGRESS=YES BACKUP_FINISHED_UNIX=--- BACKUP_FINISHED_HUMAN=--- BACKUP_STARTED_UNIX=%d BACKUP_STARTED_HUMAN="%s"' % (int(time.time()), datetime.datetime.now().ctime()), 1)
+
+    # lock image
+    if config.LOCK_RESOURCES:
+        if args.verbose:
+            print 'Locking image %d:%s' % (image.ID, image.NAME)
+        one.image.lock(image.ID, 4)
+
     # persistent and attached to VM
     if image.PERSISTENT == 1 and image.RUNNING_VMS > 0:
         vmId = image.VMS.ID[0]
@@ -78,7 +88,6 @@ for image_key in images:
             print ex
             continue
 
-        break
     # persistent not attached
     elif image.PERSISTENT == 1:
         if args.verbose:
@@ -89,6 +98,14 @@ for image_key in images:
         if args.verbose:
             print 'Backup non-persistent image %d:%s' % (image.ID, image.NAME)
 
+    # unlock image
+    if config.LOCK_RESOURCES:
+        if args.verbose:
+            print 'Unlocking image %d:%s' % (image.ID, image.NAME)
+        one.image.unlock(image.ID)
+
+    # set info abut backup start to image template
+    one.image.update(image.ID, 'BACKUP_IN_PROGRESS=NO BACKUP_FINISHED_UNIX=%d BACKUP_FINISHED_HUMAN="%s"' % (int(time.time()), datetime.datetime.now().ctime()), 1)
 
 # disconnect form 3PAR
 _3par.logout()
