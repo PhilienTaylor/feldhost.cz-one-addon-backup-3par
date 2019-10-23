@@ -1,3 +1,7 @@
+import subprocess
+import config
+
+
 def bool_arg(string):
     if string != True and string != '1' and string != 'YES':
         return False
@@ -122,3 +126,10 @@ def filter_images(all_images, datastores, args):
         return images
 
     return all_images
+
+
+def borgbackup_info():
+    try:
+        return subprocess.check_output('borg info %s' % (config.BACKUP_REPO), shell=True)
+    except subprocess.CalledProcessError as ex:
+        raise Exception('Can not issue borg info command on repo %s!' % (config.BACKUP_REPO), ex)

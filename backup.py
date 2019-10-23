@@ -136,5 +136,12 @@ for image_key in images:
     if args.verbose:
         print '#============================================================'
 
+# show borgbackup info
+if args.verbose:
+    try:
+        print functions.borgbackup_info()
+    except Exception as ex:
+        print ex
+
 # disconnect form 3PAR
 _3par.logout()
