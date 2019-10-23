@@ -28,6 +28,12 @@ def vv_name(source):
     return ex[0]
 
 
+def vv_name_wwn(source):
+    ex = source.split(':')
+
+    return ex[0], ex[1]
+
+
 def create_snapshot_name(src_name, snap_id):
     name = '{srcName}.{snapId}'.format(srcName=src_name, snapId=snap_id)
 
@@ -140,3 +146,38 @@ def backup_live(one, image, vm, vm_disk_id, verbose):
         raise Exception('Can not delete snapshot! Check VM logs.')
 
 
+def backup(image, verbose):
+    # get source name and wwn
+    name, wwn = vv_name_wwn(image.SOURCE)
+
+    # export volume to backup server
+    if verbose:
+        print 'Exporting volume %s to backup server...' % name
+    lun_no = export_vv(name, config.EXPORT_HOST)
+
+    if verbose:
+        print 'Volume is exported as LUN %d with WWN %s on %s. Discovering LUN...' % (lun_no, wwn, config.EXPORT_HOST)
+
+    # discover volume
+    try:
+        subprocess.check_call('%s/sh/discover_lun.sh %d %s' % (base_path, lun_no, wwn), shell=True)
+    except subprocess.CalledProcessError as ex:
+        raise Exception('Can not discover LUN', ex)
+
+    # backup
+    # TODO
+    if verbose:
+        print 'TODO: Backuping image....'
+
+    # flush volume
+    if verbose:
+        print 'Flushing LUN...'
+    try:
+        subprocess.check_call('%s/sh/flush_lun.sh %s' % (base_path, wwn), shell=True)
+    except subprocess.CalledProcessError as ex:
+        raise Exception('Can not flush LUN', ex)
+
+    # unexport volume
+    if verbose:
+        print 'Unexporting volume %s from backup server...' % name
+    unexport_vv(name, config.EXPORT_HOST)

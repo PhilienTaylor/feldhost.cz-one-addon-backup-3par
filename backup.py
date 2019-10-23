@@ -105,10 +105,22 @@ for image_key in images:
         if args.verbose:
             print 'Backup persistent not attached image %d:%s' % (image.ID, image.NAME)
 
+        try:
+            _3par.backup(image, args.verbose)
+        except Exception as ex:
+            print ex
+            continue
+
     # non-persistent
     elif image.PERSISTENT == 0:
         if args.verbose:
             print 'Backup non-persistent image %d:%s' % (image.ID, image.NAME)
+
+        try:
+            _3par.backup(image, args.verbose)
+        except Exception as ex:
+            print ex
+            continue
 
     # unlock image
     if config.LOCK_RESOURCES:
