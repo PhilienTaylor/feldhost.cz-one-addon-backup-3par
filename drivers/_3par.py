@@ -191,6 +191,6 @@ def backup(image, verbose):
 
 def borgbackup(name, dev):
     try:
-        return subprocess.check_output('borg create -v --stats --read-special %s::%s-{now} %s' % (config.BACKUP_REPO, name, dev), shell=True)
+        return subprocess.check_output('borg create --read-special --compression auto,zstd,3 -v --progress %s::%s-{now} %s' % (config.BACKUP_REPO, name, dev), shell=True)
     except subprocess.CalledProcessError as ex:
         raise Exception('Can not backup dev using borgbackup!', ex)
