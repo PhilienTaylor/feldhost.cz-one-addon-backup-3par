@@ -89,7 +89,7 @@ for image_key in images:
             one.vm.lock(vmId, 4)
 
         try:
-            _3par.backup_live(one, image, dataStore, vm, vmDiskId, args.verbose)
+            _3par.backup_live(one, image, vm, vmDiskId, args.verbose)
         except Exception as ex:
             print ex
             continue

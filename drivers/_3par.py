@@ -69,7 +69,7 @@ def unexport_vv(name, host):
     cl.deleteVLUN(name, vlun.get('lun'), host)
 
 
-def backup_live(one, image, data_store, vm, vm_disk_id, verbose):
+def backup_live(one, image, vm, vm_disk_id, verbose):
     # create live snapshot of image
     if verbose:
         print 'Creating live snapshot...'
