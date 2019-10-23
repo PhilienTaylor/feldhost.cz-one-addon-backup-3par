@@ -14,9 +14,9 @@ parser = argparse.ArgumentParser(description='OpenNebula Backup Tool')
 
 parser.add_argument('-i', '--image', help='Image id or comma separated list of image ids to backup. Omit for backup all images', type=functions.list_of_int_arg)
 parser.add_argument('-S', '--startImage', help='Image id to start backup from. Backups all following images including defined one', type=int)
-parser.add_argument('-a', '--dataStore', help='Datastore id or comma separated list of datastore ids to backup from. Omit to backup from all datastores to backup', type=functions.list_of_int_arg)
-parser.add_argument('-l', '--label', help='Label or comma separated list of labels of tagged images or datastores', type=functions.list_arg)
-parser.add_argument('-e', '--exclude', help='Skip (exclude) by label or comma separated list of labels of tagged images or datastores', type=functions.list_arg)
+parser.add_argument('-a', '--datastore', help='Datastore id or comma separated list of datastore ids to backup from. Omit to backup from all datastores to backup', type=functions.list_of_int_arg)
+parser.add_argument('-l', '--label', help='Label or comma separated list of labels of tagged images', type=functions.list_arg)
+parser.add_argument('-e', '--exclude', help='Skip (exclude) by label or comma separated list of labels of tagged images', type=functions.list_arg)
 parser.add_argument('-D', '--deployments', help='Backup also deployments files from system datastores', action='store_true')
 parser.add_argument('-d', '--dryRun', help='Dry run - not execute any commands, all cmds will be just printed', action='store_true')
 parser.add_argument('-v', '--verbose', help='Verbose mode', action='store_true')
@@ -31,17 +31,23 @@ args = parser.parse_args()
 # -----------------------
 one = pyone.OneServer(config.ONE['address'], session='%s:%s' % (config.ONE['username'], config.ONE['password']))
 
-imagePool = one.imagepool.info(-2, -1, -1)
+datastores = functions.prepare_datastores(one, args)
+all_images = functions.prepare_images(one, args)
+images = functions.filter_images(all_images, datastores, args)
+
+print datastores
+print images
 
 # connect and login to 3PAR
 from drivers import _3par
 _3par.login()
 
-for image in imagePool.IMAGE:
-    dataStore = one.datastore.info(image.DATASTORE_ID)
+for image_key in images:
+    image = images[image_key]
+    datastore = datastores[image.DATASTORE_ID]
 
-    # skip other datastores
-    if dataStore.TM_MAD != '3par':
+    # only datastores with 3PAR transfer manager
+    if datastore.TM_MAD != '3par':
         continue
 
     # persistent and attached to VM
