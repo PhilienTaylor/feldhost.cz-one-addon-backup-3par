@@ -82,11 +82,23 @@ for image_key in images:
         if args.verbose:
             print 'Backup persistent image %d:%s attached to VM %d:%s as disk %d' % (image.ID, image.NAME, vmId, vm.NAME, vmDiskId)
 
+        # lock VM
+        if config.LOCK_RESOURCES:
+            if args.verbose:
+                print 'Locking VM %d:%s' % (vmId, vm.NAME)
+            one.vm.lock(vmId, 4)
+
         try:
             _3par.backup_live(one, image, dataStore, vm, vmDiskId, args.verbose)
         except Exception as ex:
             print ex
             continue
+
+        # unlock VM
+        if config.LOCK_RESOURCES:
+            if args.verbose:
+                print 'Unlocking VM %d:%s' % (vmId, vm.NAME)
+            one.vm.unlock(vmId)
 
     # persistent not attached
     elif image.PERSISTENT == 1:
