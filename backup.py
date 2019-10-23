@@ -36,9 +36,6 @@ datastores = functions.prepare_datastores(one, args)
 all_images = functions.prepare_images(one, args)
 images = functions.filter_images(all_images, datastores, args)
 
-print datastores
-print images
-
 # connect and login to 3PAR
 from drivers import _3par
 _3par.login()
@@ -50,6 +47,10 @@ for image_key in images:
     # only datastores with 3PAR transfer manager
     if datastore.TM_MAD != '3par':
         continue
+
+    # mark start of backup in verbose output
+    if args.verbose:
+        print '#============================================================'
 
     # set info abut backup start to image template
     one.image.update(image.ID, 'BACKUP_IN_PROGRESS=YES BACKUP_FINISHED_UNIX=--- BACKUP_FINISHED_HUMAN=--- BACKUP_STARTED_UNIX=%d BACKUP_STARTED_HUMAN="%s"' % (int(time.time()), datetime.datetime.now().ctime()), 1)
@@ -130,6 +131,10 @@ for image_key in images:
 
     # set info abut backup start to image template
     one.image.update(image.ID, 'BACKUP_IN_PROGRESS=NO BACKUP_FINISHED_UNIX=%d BACKUP_FINISHED_HUMAN="%s"' % (int(time.time()), datetime.datetime.now().ctime()), 1)
+
+    # mark end of backup in verbose output
+    if args.verbose:
+        print '#============================================================'
 
 # disconnect form 3PAR
 _3par.logout()
