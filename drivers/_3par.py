@@ -125,7 +125,7 @@ def backup_live(one, image, vm, vm_disk_id, verbose):
     if verbose:
         print 'Backuping image....'
     dev = '/dev/mapper/3%s' % wwn
-    result = borgbackup(name, dev)
+    result = borgbackup(name, dev, image.SIZE)
     if verbose:
         print result
 
@@ -171,7 +171,7 @@ def backup(image, verbose):
     if verbose:
         print 'Backuping image....'
     dev = '/dev/mapper/3%s' % wwn
-    result = borgbackup(name, dev)
+    result = borgbackup(name, dev, image.SIZE)
     if verbose:
         print result
 
@@ -189,8 +189,10 @@ def backup(image, verbose):
     unexport_vv(name, config.EXPORT_HOST)
 
 
-def borgbackup(name, dev):
+def borgbackup(name, dev, size_mb):
+    size = size_mb*1024*1024
+
     try:
-        return subprocess.check_output('borg create --read-special --compression auto,zstd,3 -v --progress %s::%s-{now} %s' % (config.BACKUP_REPO, name, dev), shell=True)
+        return subprocess.check_output('dd if=%s bs=256K | pv -pterab -s %d | borg create --compression auto,zstd,3 %s::%s-{now} -' % (dev, size, config.BACKUP_REPO, name), shell=True)
     except subprocess.CalledProcessError as ex:
         raise Exception('Can not backup dev using borgbackup!', ex)
