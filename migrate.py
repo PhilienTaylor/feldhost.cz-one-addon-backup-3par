@@ -77,7 +77,7 @@ subprocess.check_call('%s/sh/discover_lun.sh %d %s' % (base_path, lun_no, wwn), 
 
 # covert qcow2 to raw directly to block device
 print 'Convert qcow2 to raw and write to exported lun'
-print subprocess.check_output('qemu-img convert -f qcow2 -O raw /var/data/tmp/%s /dev/mapper/3%s' % (name, wwn), shell=True)
+print subprocess.check_output('qemu-img convert -p -t none -O raw /var/data/tmp/%s /dev/mapper/3%s' % (name, wwn), shell=True)
 
 # flush volume
 print 'Flushing LUN...'
