@@ -40,6 +40,9 @@ images = functions.filter_images(all_images, datastores, args)
 from drivers import _3par
 _3par.login()
 
+# starting backup
+functions.send_email('Backup started! Images count: %d' % len(images))
+
 for image_key in images:
     image = images[image_key]
     datastore = datastores[image.DATASTORE_ID]
@@ -78,6 +81,7 @@ for image_key in images:
         if vmDiskId is None:
             # error
             print 'Can not found VM Disk ID for image %d:%s attached to VM %d:%s' % (image.ID, image.NAME, vmId, vm.NAME)
+            functions.send_email('Can not found VM Disk ID for image %d:%s attached to VM %d:%s' % (image.ID, image.NAME, vmId, vm.NAME))
             continue
 
         if args.verbose:
@@ -93,6 +97,7 @@ for image_key in images:
             _3par.backup_live(one, image, vm, vmDiskId, args.verbose)
         except Exception as ex:
             print ex
+            functions.send_email('Error backup image %d:%s: "%s"' % (image.ID, image.NAME, ex))
             continue
 
         # unlock VM
@@ -110,6 +115,7 @@ for image_key in images:
             _3par.backup(image, args.verbose)
         except Exception as ex:
             print ex
+            functions.send_email('Error backup image %d:%s: "%s"' % (image.ID, image.NAME, ex))
             continue
 
     # non-persistent
@@ -121,6 +127,7 @@ for image_key in images:
             _3par.backup(image, args.verbose)
         except Exception as ex:
             print ex
+            functions.send_email('Error backup image %d:%s: "%s"' % (image.ID, image.NAME, ex))
             continue
 
     # unlock image

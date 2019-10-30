@@ -23,3 +23,7 @@ _3PAR = {
 
 # export volumes to host - backup host name defined in 3PAR
 EXPORT_HOST = 'backup.hostname'
+
+# email settings, we use local email server localhost:25
+EMAIL_SEND_FROM = 'backup@domain.tld'
+EMAIL_SEND_TO = 'admin@domain.tld'

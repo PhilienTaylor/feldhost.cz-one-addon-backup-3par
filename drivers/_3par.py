@@ -4,6 +4,7 @@ import sys
 import time
 from hpe3parclient import client, exceptions
 import config
+import functions
 
 base_path = os.path.abspath(os.path.dirname(sys.argv[0]))
 cl = client.HPE3ParClient(config._3PAR['api'], False, config._3PAR['secure'], None, True)
@@ -16,6 +17,7 @@ def login():
         cl.login(config._3PAR['username'], config._3PAR['password'])
     except exceptions.HTTPUnauthorized:
         print "Login failed."
+        functions.send_email('Can not login to 3PAR!')
 
 
 def logout():

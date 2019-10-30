@@ -1,4 +1,5 @@
 import subprocess
+import smtplib
 import config
 
 
@@ -133,3 +134,10 @@ def borgbackup_info():
         return subprocess.check_output('borg info %s' % (config.BACKUP_REPO), shell=True)
     except subprocess.CalledProcessError as ex:
         raise Exception('Can not issue borg info command on repo %s!' % (config.BACKUP_REPO), ex)
+
+def send_email(log):
+    msg = 'Subject: %s\n\n%s' % ('Cloud Backup Information', log)
+
+    server = smtplib.SMTP("localhost", 25, )
+    server.sendmail(config.EMAIL_SEND_FROM, config.EMAIL_SEND_TO, msg)
+    server.quit()
