@@ -3,6 +3,8 @@ import subprocess
 import sys
 import time
 from hpe3parclient import client, exceptions
+from pyone import OneException
+
 import config
 import functions
 
@@ -81,10 +83,27 @@ def backup_live(one, image, vm, vm_disk_id, verbose):
     # create live snapshot of image
     if verbose:
         print 'Creating live snapshot...'
-    snap_id = one.vm.disksnapshotcreate(vm.ID, vm_disk_id, 'Automatic Backup')
 
-    if snap_id is False:
-        raise Exception('Error creating snapshot! Check VM logs.')
+    # we need to handle snapshot create errors, because if VM have more images, vm can be in state DISK_SNAPSHOT_DELETE
+    # from previous image backup
+    # TODO: we should snapshot all VM disks at one operation, to handle consistency across attached images
+    done = False
+    i = 0
+    while not done:
+        try:
+            snap_id = one.vm.disksnapshotcreate(vm.ID, vm_disk_id, 'Automatic Backup')
+
+            if snap_id is False:
+                raise Exception('Error creating snapshot! Check VM logs.')
+
+            done = True
+        except OneException as ex:
+            # failed after 3 times
+            if i > 3:
+                raise Exception(ex)
+            i += 1
+            time.sleep(5)
+
 
     # get source name and create snap name
     name = vv_name(image.SOURCE)
