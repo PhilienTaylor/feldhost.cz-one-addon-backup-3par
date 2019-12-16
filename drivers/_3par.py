@@ -43,41 +43,51 @@ def create_snapshot_name(src_name, snap_id):
 
     return name
 
-
 def export_vv(name, host):
-    # check if VLUN already exists
-    try:
-        vluns = cl.getHostVLUNs(host)
-        for vlun in vluns:
-            if vlun.get('volumeName') == name:
-                return int(vlun.get('lun'))
-    except exceptions.HTTPNotFound:
-        pass
+    # check if vlun already exists
+    cmd = ['showvlun', '-v', name, '-host', host]
+    vlunData = cl._run(cmd)
 
-    # create VLUN
-    done = False
-    while not done:
-        try:
-            location = cl.createVLUN(name, None, host, None, None, None, True)
-            return int(location.split(',')[1])
-        except exceptions.HTTPConflict:
-            time.sleep(5)
+    if vlunData[0] == 'no vluns listed' or vlunData[1] == 'no vluns listed':
+        # create export template
+        cmd = ['createvlun', '-f', name, 'auto', host]
+        cl._run(cmd)
 
+        # get export lun number
+        cmd = ['showvlun', '-v', name, '-host', host]
+        vlunData = cl._run(cmd)
+
+        if vlunData[0] == 'no vluns listed' or vlunData[1] == 'no vluns listed':
+            print 'Can not export volume %s to host %s' % (name, host)
+            exit(1)
+
+    vlunData = vlunData[2].split(',')
+    vlun = vlunData[0]
+
+    return int(vlun)
 
 def unexport_vv(name, host):
-    # check if VLUN exists
-    found = False
-    vluns = cl.getHostVLUNs(host)
-    for vlun in vluns:
-        if vlun.get('volumeName') == name:
-            found = True
+    # check if vlun aleready exists
+    cmd = ['showvlun', '-v', name, '-host', host]
+    vlunData = cl._run(cmd)
+
+    vlun = 0
+    index = 0
+    for row in vlunData:
+        index = index + 1
+        if row.startswith('Lun'):
+            # get LUN
+            vlunData = vlunData[index].split(',')
+            vlun = vlunData[0]
             break
 
-    if found == False:
+    # lun doesnt exists, returning
+    if vlun == 0:
         return
 
-    cl.deleteVLUN(name, vlun.get('lun'), host)
-
+    # delete vlun
+    cmd = ['removevlun', '-f', name, vlun, host]
+    cl._run(cmd)
 
 def backup_live(one, image, vm, vm_disk_id, verbose):
     # create live snapshot of image
@@ -113,25 +123,31 @@ def backup_live(one, image, vm, vm_disk_id, verbose):
     if verbose:
         print 'Waiting for snapshot to be created...'
     time.sleep(5)
+    wwn = ''
     done = False
     i = 0
     while not done:
-        try:
-            volume = cl.getVolume(snap_name)
-            done = True
-        except exceptions.HTTPNotFound:
-            # failed after 60s
-            if i > 11:
-                raise Exception('Looks like snapshot is not created. Check VM logs.')
-            i += 1
-            time.sleep(5)
+        # check if there is some soft-deleted snap
+        cmd = ['showvv', '-showcols', 'VV_WWN,ExpirationTime', snap_name]
+        vv = cl._run(cmd)
+
+        if vv[1] != '---------------------':
+            vv = vv[1].split(',')
+            if vv[1] == '--':
+               wwn = vv[0].lower()
+               break
+
+        # failed after 60s
+        if i > 11:
+            raise Exception('Looks like snapshot is not created. Check VM logs.')
+        i += 1
+        time.sleep(5)
 
     # export volume to backup server
     if verbose:
         print 'Snapshot %d:%s created.' % (snap_id, snap_name)
         print 'Exporting snapshot to backup server...'
     lun_no = export_vv(snap_name, config.EXPORT_HOST)
-    wwn = volume.get('wwn').lower()
 
     if verbose:
         print 'Snapshot is exported as LUN %d with WWN %s on %s. Discovering LUN...' % (lun_no, wwn, config.EXPORT_HOST)
