@@ -185,6 +185,13 @@ def backup_live(one, image, vm, vm_disk_id, verbose):
     if not one.vm.disksnapshotdelete(vm.ID, vm_disk_id, snap_id):
         raise Exception('Can not delete snapshot! Check VM logs.')
 
+    # prune old backups
+    if verbose:
+        print 'Pruning old backups...'
+    result = borgprune(name)
+    if verbose:
+        print result
+
 
 def backup(image, verbose):
     # get source name and wwn
@@ -225,6 +232,13 @@ def backup(image, verbose):
         print 'Unexporting volume %s from backup server...' % name
     unexport_vv(name, config.EXPORT_HOST)
 
+    # prune old backups
+    if verbose:
+        print 'Pruning old backups...'
+    result = borgprune(name)
+    if verbose:
+        print result
+
 
 def borgbackup(name, dev, size_mb):
     size = size_mb*1024*1024
@@ -233,3 +247,11 @@ def borgbackup(name, dev, size_mb):
         return subprocess.check_output('dd if=%s bs=256K | pv -pterab -s %d | borg create --compression auto,zstd,3 %s::%s-{now} -' % (dev, size, config.BACKUP_REPO, name), shell=True)
     except subprocess.CalledProcessError as ex:
         raise Exception('Can not backup dev using borgbackup!', ex)
+
+
+def borgprune(name):
+    try:
+        return subprocess.check_output('borg prune -v --list --stats --keep-daily=7 --keep-weekly=4 --keep-monthly=6 --prefix=%s %s' % (name, config.BACKUP_REPO), shell=True)
+    except subprocess.CalledProcessError as ex:
+        raise Exception('Can not run borg prune!', ex)
+
