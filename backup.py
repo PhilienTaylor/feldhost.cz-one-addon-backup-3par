@@ -18,8 +18,9 @@ parser.add_argument('-S', '--startImage', help='Image id to start backup from. B
 parser.add_argument('-a', '--datastore', help='Datastore id or comma separated list of datastore ids to backup from. Omit to backup from all datastores to backup', type=functions.list_of_int_arg)
 parser.add_argument('-l', '--label', help='Label or comma separated list of labels of tagged images', type=functions.list_arg)
 parser.add_argument('-e', '--exclude', help='Skip (exclude) by label or comma separated list of labels of tagged images', type=functions.list_arg)
-parser.add_argument('-D', '--deployments', help='Backup also deployments files from system datastores', action='store_true')
-parser.add_argument('-d', '--dryRun', help='Dry run - not execute any commands, all cmds will be just printed', action='store_true')
+parser.add_argument('-P', '--pruneOnly', help='Don\'t backup anything, just prune old backups', action='store_true')
+parser.add_argument('-D', '--deployments', help='Not implemented yet! Backup also deployments files from system datastores', action='store_true')
+parser.add_argument('-d', '--dryRun', help='Not implemented yet! Dry run - not execute any commands, all cmds will be just printed', action='store_true')
 parser.add_argument('-v', '--verbose', help='Verbose mode', action='store_true')
 
 # -------------------------------------
@@ -41,7 +42,8 @@ from drivers import _3par
 _3par.login()
 
 # starting backup
-functions.send_email('Backup started! Images count: %d' % len(images))
+if not args.pruneOnly:
+    functions.send_email('Backup started! Images count: %d' % len(images))
 
 for image_key in images:
     image = images[image_key]
@@ -49,6 +51,15 @@ for image_key in images:
 
     # only datastores with 3PAR transfer manager
     if datastore.TM_MAD != '3par':
+        continue
+
+    # prune only?
+    if args.pruneOnly:
+        try:
+            _3par.prune(image, args.verbose)
+        except Exception as ex:
+            print ex
+            functions.send_email('Error prune image %d:%s: "%s"' % (image.ID, image.NAME, ex))
         continue
 
     # mark start of backup in verbose output
