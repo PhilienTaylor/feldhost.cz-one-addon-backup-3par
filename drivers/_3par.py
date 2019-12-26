@@ -1,4 +1,5 @@
 import os
+import re
 import subprocess
 import sys
 import time
@@ -224,6 +225,18 @@ def backup(image, verbose):
         print result
 
 
+def prune(image, verbose):
+    # get source name and wwn
+    name, wwn = vv_name_wwn(image.SOURCE)
+
+    # prune old backups
+    if verbose:
+        print 'Pruning old backups...'
+    result = borgprune(name)
+    if verbose:
+        print result
+
+
 def borgbackup(name, dev, size_mb):
     size = size_mb*1024*1024
 
@@ -234,6 +247,10 @@ def borgbackup(name, dev, size_mb):
 
 
 def borgprune(name):
+    # check if name is defined, prevent deleting more that we want
+    if not re.match('^feldcloud\.one\.[0-9]+\.vv$', name):
+        raise Exception('Can not run borg prune!', 'Name doesn\'t match pattern. Should be in format feldcloud.one.[0-9]+.vv, given "%s"' % name)
+
     try:
         return subprocess.check_output('borg prune -v --list --stats --keep-daily=7 --keep-weekly=4 --keep-monthly=6 --prefix=%s %s' % (name, config.BACKUP_REPO), shell=True)
     except subprocess.CalledProcessError as ex:
