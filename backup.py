@@ -166,5 +166,3 @@ if args.verbose:
     except Exception as ex:
         print ex
 
-# disconnect form 3PAR
-_3par.logout()

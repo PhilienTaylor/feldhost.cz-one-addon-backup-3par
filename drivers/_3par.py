@@ -16,16 +16,6 @@ cl = client.HPE3ParClient(config._3PAR['api'], False, config._3PAR['secure'], No
 def login():
     cl.setSSHOptions(config._3PAR['ip'], config._3PAR['username'], config._3PAR['password'])
 
-    try:
-        cl.login(config._3PAR['username'], config._3PAR['password'])
-    except exceptions.HTTPUnauthorized:
-        print "Login failed."
-        functions.send_email('Can not login to 3PAR!')
-
-
-def logout():
-    cl.logout()
-
 
 def vv_name(source):
     ex = source.split(':')
