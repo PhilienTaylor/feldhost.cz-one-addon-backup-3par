@@ -67,7 +67,12 @@ for image_key in images:
         print '#============================================================'
 
     # set info abut backup start to image template
-    one.image.update(image.ID, 'BACKUP_IN_PROGRESS=YES BACKUP_FINISHED_UNIX=--- BACKUP_FINISHED_HUMAN=--- BACKUP_STARTED_UNIX=%d BACKUP_STARTED_HUMAN="%s"' % (int(time.time()), datetime.datetime.now().ctime()), 1)
+    try:
+        one.image.update(image.ID, 'BACKUP_IN_PROGRESS=YES BACKUP_FINISHED_UNIX=--- BACKUP_FINISHED_HUMAN=--- BACKUP_STARTED_UNIX=%d BACKUP_STARTED_HUMAN="%s"' % (int(time.time()), datetime.datetime.now().ctime()), 1)
+    except Exception as ex:
+        print ex
+        functions.send_email('Error backup image %d:%s: "%s"' % (image.ID, image.NAME, ex))
+        continue
 
     # lock image
     if config.LOCK_RESOURCES:
