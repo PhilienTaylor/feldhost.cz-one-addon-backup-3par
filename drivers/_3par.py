@@ -119,6 +119,11 @@ def backup_live(one, image, vm, vm_disk_id, verbose):
     while not done:
         try:
             volume = cl.getVolume(snap_name)
+
+            # check for soft-deleted snapshot
+            if volume.get('expirationTimeSec'):
+                raise exceptions.HTTPNotFound
+
             done = True
         except exceptions.HTTPNotFound:
             # failed after 60s
