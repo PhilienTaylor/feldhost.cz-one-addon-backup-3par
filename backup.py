@@ -88,7 +88,8 @@ for image_key in images:
 
         if isinstance(vm.TEMPLATE.get('DISK'), list):
             for vmDisk in vm.TEMPLATE.get('DISK'):
-                if int(vmDisk.get('IMAGE_ID')) == image.ID:
+                # volatile disks doesn't have IMAGE_ID attribute
+                if vmDisk.get('IMAGE_ID') is not None and int(vmDisk.get('IMAGE_ID')) == image.ID:
                     vmDiskId = int(vmDisk.get('DISK_ID'))
                     break
         else:
