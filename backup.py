@@ -45,8 +45,7 @@ _3par.login()
 if not args.pruneOnly:
     functions.send_email('Backup started! Images count: %d' % len(images))
 
-for image_key in images:
-    image = images[image_key]
+for key, image in sorted(images.iteritems()):
     datastore = datastores[image.DATASTORE_ID]
 
     # only datastores with 3PAR transfer manager
