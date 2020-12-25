@@ -6,7 +6,9 @@ ONE = {
 }
 
 # Path to borgbackup repo
-BACKUP_REPO = '/var/data/backups/'
+BACKUP_REPO = '/var/data/backups/repo/'
+# backup path used for parallel backups where each image have own repo
+BACKUP_PATH = '/var/data/backups/'
 
 # Lock Image and VM during backup
 # OpenNebula 5.6+ required

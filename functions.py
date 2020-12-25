@@ -1,7 +1,10 @@
-import subprocess
 import smtplib
 import config
-
+import datetime
+import time
+import globals as g
+import pyone
+from drivers import _3par
 
 def bool_arg(string):
     if string != True and string != '1' and string != 'YES':
@@ -34,7 +37,7 @@ def prepare_datastores(one, args):
         datastore_pool = one.datastorepool.info()
         for datastore in datastore_pool.DATASTORE:
             if not args.datastore or datastore.ID in args.datastore:
-                    datastores[datastore.ID] = datastore
+                datastores[datastore.ID] = datastore
 
     return datastores
 
@@ -129,15 +132,156 @@ def filter_images(all_images, datastores, args):
     return all_images
 
 
-def borgbackup_info():
-    try:
-        return subprocess.check_output('borg info %s' % (config.BACKUP_REPO), shell=True)
-    except subprocess.CalledProcessError as ex:
-        raise Exception('Can not issue borg info command on repo %s!' % (config.BACKUP_REPO), ex)
-
 def send_email(log):
     msg = 'Subject: %s\n\n%s' % ('Cloud Backup Information', log)
 
     server = smtplib.SMTP("localhost", 25, )
     server.sendmail(config.EMAIL_SEND_FROM, config.EMAIL_SEND_TO, msg)
     server.quit()
+
+
+def backup_image(image):
+    datastore = g.datastores[image.DATASTORE_ID]
+
+    # only datastores with 3PAR transfer manager
+    if datastore.TM_MAD != '3par':
+        return
+
+    # ---------------------
+    # Connect to OpenNebula
+    # ---------------------
+    one = pyone.OneServer(config.ONE['address'], session='%s:%s' % (config.ONE['username'], config.ONE['password']))
+
+    # -------------------------
+    # Connect and login to 3PAR
+    # -------------------------
+    _3par.login()
+
+    # prune only?
+    if g.args.pruneOnly:
+        try:
+            _3par.prune(image, g.args.verbose)
+        except Exception as ex:
+            print ex
+            send_email('Error prune image %d:%s: "%s"' % (image.ID, image.NAME, ex))
+            # disconnect from 3PAR
+            _3par.logout()
+        return
+
+    # mark start of backup in verbose output
+    if g.args.verbose:
+        print '#============================================================'
+
+    # set info abut backup start to image template
+    try:
+        one.image.update(image.ID,
+                         'BACKUP_IN_PROGRESS=YES BACKUP_FINISHED_UNIX=--- BACKUP_FINISHED_HUMAN=--- BACKUP_STARTED_UNIX=%d BACKUP_STARTED_HUMAN="%s"' % (
+                             int(time.time()), datetime.datetime.now().ctime()), 1)
+    except Exception as ex:
+        print ex
+        send_email('Error backup image %d:%s: "%s"' % (image.ID, image.NAME, ex))
+        # disconnect from 3PAR
+        _3par.logout()
+        return
+
+    # lock image
+    if config.LOCK_RESOURCES:
+        if g.args.verbose:
+            print 'Locking image %d:%s' % (image.ID, image.NAME)
+        one.image.lock(image.ID, 4)
+
+    # persistent and attached to VM
+    if image.PERSISTENT == 1 and image.RUNNING_VMS > 0:
+        vmId = image.VMS.ID[0]
+        vm = one.vm.info(vmId)
+        vmDiskId = None
+
+        if isinstance(vm.TEMPLATE.get('DISK'), list):
+            for vmDisk in vm.TEMPLATE.get('DISK'):
+                # volatile disks doesn't have IMAGE_ID attribute
+                if vmDisk.get('IMAGE_ID') is not None and int(vmDisk.get('IMAGE_ID')) == image.ID:
+                    vmDiskId = int(vmDisk.get('DISK_ID'))
+                    break
+        else:
+            vmDiskId = int(vm.TEMPLATE.get('DISK').get('DISK_ID'))
+
+        if vmDiskId is None:
+            # error
+            print 'Can not found VM Disk ID for image %d:%s attached to VM %d:%s' % (
+                image.ID, image.NAME, vmId, vm.NAME)
+            send_email(
+                'Can not found VM Disk ID for image %d:%s attached to VM %d:%s' % (image.ID, image.NAME, vmId, vm.NAME))
+            # disconnect from 3PAR
+            _3par.logout()
+            return
+
+        if g.args.verbose:
+            print 'Backup persistent image %d:%s attached to VM %d:%s as disk %d' % (
+                image.ID, image.NAME, vmId, vm.NAME, vmDiskId)
+
+        # lock VM
+        if config.LOCK_RESOURCES:
+            if g.args.verbose:
+                print 'Locking VM %d:%s' % (vmId, vm.NAME)
+            one.vm.lock(vmId, 4)
+
+        try:
+            _3par.backup_live(one, image, vm, vmDiskId, g.args.verbose)
+        except Exception as ex:
+            print ex
+            send_email('Error backup image %d:%s: "%s"' % (image.ID, image.NAME, ex))
+            # disconnect from 3PAR
+            _3par.logout()
+            return
+
+        # unlock VM
+        if config.LOCK_RESOURCES:
+            if g.args.verbose:
+                print 'Unlocking VM %d:%s' % (vmId, vm.NAME)
+            one.vm.unlock(vmId)
+
+    # persistent not attached
+    elif image.PERSISTENT == 1:
+        if g.args.verbose:
+            print 'Backup persistent not attached image %d:%s' % (image.ID, image.NAME)
+
+        try:
+            _3par.backup(image, g.args.verbose)
+        except Exception as ex:
+            print ex
+            send_email('Error backup image %d:%s: "%s"' % (image.ID, image.NAME, ex))
+            # disconnect from 3PAR
+            _3par.logout()
+            return
+
+    # non-persistent
+    elif image.PERSISTENT == 0:
+        if g.args.verbose:
+            print 'Backup non-persistent image %d:%s' % (image.ID, image.NAME)
+
+        try:
+            _3par.backup(image, g.args.verbose)
+        except Exception as ex:
+            print ex
+            send_email('Error backup image %d:%s: "%s"' % (image.ID, image.NAME, ex))
+            # disconnect from 3PAR
+            _3par.logout()
+            return
+
+    # unlock image
+    if config.LOCK_RESOURCES:
+        if g.args.verbose:
+            print 'Unlocking image %d:%s' % (image.ID, image.NAME)
+        one.image.unlock(image.ID)
+
+    # set info abut backup start to image template
+    one.image.update(image.ID, 'BACKUP_IN_PROGRESS=NO BACKUP_FINISHED_UNIX=%d BACKUP_FINISHED_HUMAN="%s"' % (
+        int(time.time()), datetime.datetime.now().ctime()), 1)
+
+    # mark end of backup in verbose output
+    if g.args.verbose:
+        print '#============================================================'
+
+    # disconnect from 3PAR
+    _3par.logout()
+

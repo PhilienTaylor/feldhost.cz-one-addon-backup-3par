@@ -1,5 +1,4 @@
 import os
-import re
 import subprocess
 import sys
 import time
@@ -19,8 +18,8 @@ def login():
     try:
         cl.login(config._3PAR['username'], config._3PAR['password'])
     except exceptions.HTTPUnauthorized:
-        print "Login failed."
         functions.send_email('Can not login to 3PAR!')
+        return "Login failed."
 
 
 def logout():
@@ -152,7 +151,7 @@ def backup_live(one, image, vm, vm_disk_id, verbose):
     if verbose:
         print 'Backuping image....'
     dev = '/dev/mapper/3%s' % wwn
-    result = borgbackup(name, dev, image.SIZE)
+    result = borgbackup(image.ID, dev, image.SIZE)
     if verbose:
         print result
 
@@ -178,7 +177,7 @@ def backup_live(one, image, vm, vm_disk_id, verbose):
     # prune old backups
     if verbose:
         print 'Pruning old backups...'
-    result = borgprune(name)
+    result = borgprune(image.ID)
     if verbose:
         print result
 
@@ -205,7 +204,7 @@ def backup(image, verbose):
     if verbose:
         print 'Backuping image....'
     dev = '/dev/mapper/3%s' % wwn
-    result = borgbackup(name, dev, image.SIZE)
+    result = borgbackup(image.ID, dev, image.SIZE)
     if verbose:
         print result
 
@@ -225,39 +224,49 @@ def backup(image, verbose):
     # prune old backups
     if verbose:
         print 'Pruning old backups...'
-    result = borgprune(name)
+    result = borgprune(image.ID)
     if verbose:
         print result
 
 
 def prune(image, verbose):
-    # get source name and wwn
-    name, wwn = vv_name_wwn(image.SOURCE)
-
     # prune old backups
     if verbose:
         print 'Pruning old backups...'
-    result = borgprune(name)
+    result = borgprune(image.ID)
     if verbose:
         print result
 
 
-def borgbackup(name, dev, size_mb):
+def borginit(image_id):
+    try:
+        return subprocess.check_output('borg init -e none %s/%s' % (config.BACKUP_PATH, image_id), shell=True)
+    except subprocess.CalledProcessError as ex:
+        raise Exception('Can not init borgbackup repo!', ex)
+
+
+def borgbackup(image_id, dev, size_mb):
     size = size_mb*1024*1024
 
+    # check if repo exists
+    if not os.path.exists('%s/%s' % (config.BACKUP_PATH, image_id)):
+        borginit(image_id)
+
     try:
-        return subprocess.check_output('dd if=%s bs=256K | pv -pterab -s %d | borg create --compression auto,zstd,3 %s::%s-{now} -' % (dev, size, config.BACKUP_REPO, name), shell=True)
+        return subprocess.check_output('dd if=%s bs=256K | pv -pterab -s %d | borg create --compression auto,zstd,3 %s/%s::{now} -' % (dev, size, config.BACKUP_PATH, image_id), shell=True)
     except subprocess.CalledProcessError as ex:
         raise Exception('Can not backup dev using borgbackup!', ex)
 
 
-def borgprune(name):
-    # check if name is defined, prevent deleting more that we want
-    if not re.match('^feldcloud\.one\.[0-9]+\.vv$', name):
-        raise Exception('Can not run borg prune!', 'Name doesn\'t match pattern. Should be in format feldcloud.one.[0-9]+.vv, given "%s"' % name)
-
+def borgprune(image_id):
     try:
-        return subprocess.check_output('borg prune -v --list --stats --keep-daily=7 --keep-weekly=4 --keep-monthly=6 --prefix=%s %s' % (name, config.BACKUP_REPO), shell=True)
+        return subprocess.check_output('borg prune -v --list --stats --keep-daily=7 --keep-weekly=4 --keep-monthly=6 %s/%s' % (config.BACKUP_PATH, image_id), shell=True)
     except subprocess.CalledProcessError as ex:
         raise Exception('Can not run borg prune!', ex)
 
+
+def borgbackup_info(image_id):
+    try:
+        return subprocess.check_output('borg info %s/%s' % (config.BACKUP_PATH, image_id), shell=True)
+    except subprocess.CalledProcessError as ex:
+        raise Exception('Can not issue borg info command on repo %s/%s!' % (config.BACKUP_PATH, image_id), ex)

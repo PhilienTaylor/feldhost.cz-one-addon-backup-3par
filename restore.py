@@ -82,12 +82,12 @@ def _list(one, args):
     name, wwn = vv_name_wwn(image.SOURCE)
 
     try:
-        result = subprocess.check_output('borg list %s -P %s | grep -Po "[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}"' % (config.BACKUP_REPO, name), shell=True)
+        result = subprocess.check_output('borg list %s/%s | grep -Po "[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}"' % (config.BACKUP_PATH, image.ID), shell=True)
 
         if args.extended:
             s = StringIO(result)
             for line in s:
-                subprocess.check_call('borg info %s::%s-%s' % (config.BACKUP_REPO, name, line), shell=True)
+                subprocess.check_call('borg info %s/%s::%s' % (config.BACKUP_PATH, image.ID, line), shell=True)
         else:
             print result
 
@@ -102,7 +102,7 @@ def _info(one, args):
     # get source name and wwn
     name, wwn = vv_name_wwn(image.SOURCE)
 
-    subprocess.check_call('borg info %s::%s-%s' % (config.BACKUP_REPO, name, args.datetime), shell=True)
+    subprocess.check_call('borg info %s/%s::%s' % (config.BACKUP_PATH, image.ID, args.datetime), shell=True)
 
 
 def _restore(one, args):
@@ -115,7 +115,7 @@ def _restore(one, args):
     srcName, srcWwn = vv_name_wwn(srcImage.SOURCE)
 
     # validate if given datetime exists
-    subprocess.check_call('borg info %s::%s-%s' % (config.BACKUP_REPO, srcName, args.datetime), shell=True)
+    subprocess.check_call('borg info %s/%s::%s' % (config.BACKUP_PATH, srcImage.ID, args.datetime), shell=True)
 
     if args.targetImage:
         # get info about dest image
@@ -147,7 +147,7 @@ def _restore(one, args):
     print 'Restore volume from backup to exported lun'
     # calculate size
     size = destImage.SIZE * 1024 * 1024
-    print subprocess.check_output('borg extract --stdout %s::%s-%s | pv -pterab -s %d | dd of=/dev/mapper/3%s bs=%s' % (config.BACKUP_REPO, srcName, args.datetime, size, destWwn, args.bs),
+    print subprocess.check_output('borg extract --stdout %s/%s::%s | pv -pterab -s %d | dd of=/dev/mapper/3%s bs=%s' % (config.BACKUP_PATH, srcImage.ID, args.datetime, size, destWwn, args.bs),
                                   shell=True)
 
     # flush volume
