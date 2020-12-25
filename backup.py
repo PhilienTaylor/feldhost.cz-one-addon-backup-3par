@@ -2,10 +2,8 @@
 
 import logging
 from multiprocessing import Pool
-from multiprocessing_logging import install_mp_handler
 import functions
 import globals as g
-from drivers import _3par
 
 g.initialize()
 
@@ -14,8 +12,8 @@ if not g.args.pruneOnly:
     functions.send_email('Backup started! Images count: %d' % len(g.images))
 
 # init logging
-logging.basicConfig(level=logging.DEBUG)
-install_mp_handler()
+logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
+
 # init multi processing pool
 pool = Pool(g.args.parallel)
 

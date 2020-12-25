@@ -1,3 +1,4 @@
+import logging
 import os
 import subprocess
 import sys
@@ -82,7 +83,7 @@ def unexport_vv(name, host):
 def backup_live(one, image, vm, vm_disk_id, verbose):
     # create live snapshot of image
     if verbose:
-        print 'Creating live snapshot...'
+        logging.info('Creating live snapshot...')
 
     # we need to handle snapshot create errors, because if VM have more images, vm can be in state DISK_SNAPSHOT_DELETE
     # from previous image backup
@@ -111,7 +112,7 @@ def backup_live(one, image, vm, vm_disk_id, verbose):
 
     # wait until snapshot is created
     if verbose:
-        print 'Waiting for snapshot to be created...'
+        logging.info('Waiting for snapshot to be created...')
     time.sleep(5)
     done = False
     i = 0
@@ -133,13 +134,14 @@ def backup_live(one, image, vm, vm_disk_id, verbose):
 
     # export volume to backup server
     if verbose:
-        print 'Snapshot %d:%s created.' % (snap_id, snap_name)
-        print 'Exporting snapshot to backup server...'
+        logging.info('Snapshot %d:%s created.' % (snap_id, snap_name))
+        logging.info('Exporting snapshot to backup server...')
     lun_no = export_vv(snap_name, config.EXPORT_HOST)
     wwn = volume.get('wwn').lower()
 
     if verbose:
-        print 'Snapshot is exported as LUN %d with WWN %s on %s. Discovering LUN...' % (lun_no, wwn, config.EXPORT_HOST)
+        logging.info('Snapshot is exported as LUN %d with WWN %s on %s.' % (lun_no, wwn, config.EXPORT_HOST))
+        logging.info('Discovering LUN...')
 
     # discover volume
     try:
@@ -149,15 +151,15 @@ def backup_live(one, image, vm, vm_disk_id, verbose):
 
     # backup
     if verbose:
-        print 'Backuping image....'
+        logging.info('Backup image now...')
     dev = '/dev/mapper/3%s' % wwn
     result = borgbackup(image.ID, dev, image.SIZE)
     if verbose:
-        print result
+        logging.info(result)
 
     # flush volume
     if verbose:
-        print 'Flushing LUN...'
+        logging.info('Flushing LUN...')
     try:
         subprocess.check_call('%s/sh/flush_lun.sh %s' % (base_path, wwn), shell=True)
     except subprocess.CalledProcessError as ex:
@@ -165,21 +167,21 @@ def backup_live(one, image, vm, vm_disk_id, verbose):
 
     # unexport volume
     if verbose:
-        print 'Unexporting snapshot from backup server...'
+        logging.info('Unexporting snapshot from backup server...')
     unexport_vv(snap_name, config.EXPORT_HOST)
 
     # delete snapshot
     if verbose:
-        print 'Deleting snapshot...'
+        logging.info('Deleting snapshot...')
     if not one.vm.disksnapshotdelete(vm.ID, vm_disk_id, snap_id):
         raise Exception('Can not delete snapshot! Check VM logs.')
 
     # prune old backups
     if verbose:
-        print 'Pruning old backups...'
+        logging.info('Pruning old backups...')
     result = borgprune(image.ID)
     if verbose:
-        print result
+        logging.info(result)
 
 
 def backup(image, verbose):
@@ -188,11 +190,12 @@ def backup(image, verbose):
 
     # export volume to backup server
     if verbose:
-        print 'Exporting volume %s to backup server...' % name
+        logging.info('Exporting volume %s to backup server...' % name)
     lun_no = export_vv(name, config.EXPORT_HOST)
 
     if verbose:
-        print 'Volume is exported as LUN %d with WWN %s on %s. Discovering LUN...' % (lun_no, wwn, config.EXPORT_HOST)
+        logging.info('Volume is exported as LUN %d with WWN %s on %s.' % (lun_no, wwn, config.EXPORT_HOST))
+        logging.info('Discovering LUN...')
 
     # discover volume
     try:
@@ -202,15 +205,15 @@ def backup(image, verbose):
 
     # backup
     if verbose:
-        print 'Backuping image....'
+        logging.info('Backup image now...')
     dev = '/dev/mapper/3%s' % wwn
     result = borgbackup(image.ID, dev, image.SIZE)
     if verbose:
-        print result
+        logging.info(result)
 
     # flush volume
     if verbose:
-        print 'Flushing LUN...'
+        logging.info('Flushing LUN...')
     try:
         subprocess.check_call('%s/sh/flush_lun.sh %s' % (base_path, wwn), shell=True)
     except subprocess.CalledProcessError as ex:
@@ -218,24 +221,24 @@ def backup(image, verbose):
 
     # unexport volume
     if verbose:
-        print 'Unexporting volume %s from backup server...' % name
+        logging.info('Unexporting volume %s from backup server...' % name)
     unexport_vv(name, config.EXPORT_HOST)
 
     # prune old backups
     if verbose:
-        print 'Pruning old backups...'
+        logging.info('Pruning old backups...')
     result = borgprune(image.ID)
     if verbose:
-        print result
+        logging.info(result)
 
 
 def prune(image, verbose):
     # prune old backups
     if verbose:
-        print 'Pruning old backups...'
+        logging.info('Pruning old backups...')
     result = borgprune(image.ID)
     if verbose:
-        print result
+        logging.info(result)
 
 
 def borginit(image_id):

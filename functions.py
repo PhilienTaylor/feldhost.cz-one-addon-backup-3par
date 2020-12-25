@@ -1,3 +1,4 @@
+import logging
 import smtplib
 import config
 import datetime
@@ -162,7 +163,7 @@ def backup_image(image):
         try:
             _3par.prune(image, g.args.verbose)
         except Exception as ex:
-            print ex
+            logging.error(ex)
             send_email('Error prune image %d:%s: "%s"' % (image.ID, image.NAME, ex))
             # disconnect from 3PAR
             _3par.logout()
@@ -170,7 +171,7 @@ def backup_image(image):
 
     # mark start of backup in verbose output
     if g.args.verbose:
-        print '#============================================================'
+        logging.info('#============================================================')
 
     # set info abut backup start to image template
     try:
@@ -178,7 +179,7 @@ def backup_image(image):
                          'BACKUP_IN_PROGRESS=YES BACKUP_FINISHED_UNIX=--- BACKUP_FINISHED_HUMAN=--- BACKUP_STARTED_UNIX=%d BACKUP_STARTED_HUMAN="%s"' % (
                              int(time.time()), datetime.datetime.now().ctime()), 1)
     except Exception as ex:
-        print ex
+        logging.error(ex)
         send_email('Error backup image %d:%s: "%s"' % (image.ID, image.NAME, ex))
         # disconnect from 3PAR
         _3par.logout()
@@ -187,7 +188,7 @@ def backup_image(image):
     # lock image
     if config.LOCK_RESOURCES:
         if g.args.verbose:
-            print 'Locking image %d:%s' % (image.ID, image.NAME)
+            logging.info('Locking image %d:%s' % (image.ID, image.NAME))
         one.image.lock(image.ID, 4)
 
     # persistent and attached to VM
@@ -207,8 +208,8 @@ def backup_image(image):
 
         if vmDiskId is None:
             # error
-            print 'Can not found VM Disk ID for image %d:%s attached to VM %d:%s' % (
-                image.ID, image.NAME, vmId, vm.NAME)
+            logging.warning('Can not found VM Disk ID for image %d:%s attached to VM %d:%s' % (
+                image.ID, image.NAME, vmId, vm.NAME))
             send_email(
                 'Can not found VM Disk ID for image %d:%s attached to VM %d:%s' % (image.ID, image.NAME, vmId, vm.NAME))
             # disconnect from 3PAR
@@ -216,19 +217,19 @@ def backup_image(image):
             return
 
         if g.args.verbose:
-            print 'Backup persistent image %d:%s attached to VM %d:%s as disk %d' % (
-                image.ID, image.NAME, vmId, vm.NAME, vmDiskId)
+            logging.info('Backup persistent image %d:%s attached to VM %d:%s as disk %d' % (
+                image.ID, image.NAME, vmId, vm.NAME, vmDiskId))
 
         # lock VM
         if config.LOCK_RESOURCES:
             if g.args.verbose:
-                print 'Locking VM %d:%s' % (vmId, vm.NAME)
+                logging.info('Locking VM %d:%s' % (vmId, vm.NAME))
             one.vm.lock(vmId, 4)
 
         try:
             _3par.backup_live(one, image, vm, vmDiskId, g.args.verbose)
         except Exception as ex:
-            print ex
+            logging.error(ex)
             send_email('Error backup image %d:%s: "%s"' % (image.ID, image.NAME, ex))
             # disconnect from 3PAR
             _3par.logout()
@@ -237,18 +238,18 @@ def backup_image(image):
         # unlock VM
         if config.LOCK_RESOURCES:
             if g.args.verbose:
-                print 'Unlocking VM %d:%s' % (vmId, vm.NAME)
+                logging.info('Unlocking VM %d:%s' % (vmId, vm.NAME))
             one.vm.unlock(vmId)
 
     # persistent not attached
     elif image.PERSISTENT == 1:
         if g.args.verbose:
-            print 'Backup persistent not attached image %d:%s' % (image.ID, image.NAME)
+            logging.info('Backup persistent not attached image %d:%s' % (image.ID, image.NAME))
 
         try:
             _3par.backup(image, g.args.verbose)
         except Exception as ex:
-            print ex
+            logging.error(ex)
             send_email('Error backup image %d:%s: "%s"' % (image.ID, image.NAME, ex))
             # disconnect from 3PAR
             _3par.logout()
@@ -257,12 +258,12 @@ def backup_image(image):
     # non-persistent
     elif image.PERSISTENT == 0:
         if g.args.verbose:
-            print 'Backup non-persistent image %d:%s' % (image.ID, image.NAME)
+            logging.info('Backup non-persistent image %d:%s' % (image.ID, image.NAME))
 
         try:
             _3par.backup(image, g.args.verbose)
         except Exception as ex:
-            print ex
+            logging.error(ex)
             send_email('Error backup image %d:%s: "%s"' % (image.ID, image.NAME, ex))
             # disconnect from 3PAR
             _3par.logout()
@@ -271,7 +272,7 @@ def backup_image(image):
     # unlock image
     if config.LOCK_RESOURCES:
         if g.args.verbose:
-            print 'Unlocking image %d:%s' % (image.ID, image.NAME)
+            logging.info('Unlocking image %d:%s' % (image.ID, image.NAME))
         one.image.unlock(image.ID)
 
     # set info abut backup start to image template
@@ -280,7 +281,7 @@ def backup_image(image):
 
     # mark end of backup in verbose output
     if g.args.verbose:
-        print '#============================================================'
+        logging.info('#============================================================')
 
     # disconnect from 3PAR
     _3par.logout()
