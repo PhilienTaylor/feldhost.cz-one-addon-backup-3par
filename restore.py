@@ -6,6 +6,8 @@ import subprocess
 import sys
 import time
 from StringIO import StringIO
+import functions
+from drivers import _3par
 
 import config
 import pyone
@@ -54,7 +56,7 @@ def allocateImage(one, name, image, datetime, datastore):
     imagePersistent = {0: 'NO', 1: 'YES'}
 
     # allocate new image in datastore 101
-    template = 'NAME=%s TYPE=%s SIZE=%d PERSISTENT=%s DEV_PREFIX=sd DRIVER=raw RESTORE_FROM_DATETIME=%s LABELS=nobackup' % (
+    template = 'NAME="%s" TYPE=%s SIZE=%d PERSISTENT=%s DEV_PREFIX=sd DRIVER=raw RESTORE_FROM_DATETIME=%s LABELS=nobackup' % (
     name, imageTypes[image.TYPE], image.SIZE, imagePersistent[image.PERSISTENT], datetime)
 
     try:
@@ -132,7 +134,6 @@ def _restore(one, args):
     destName, destWwn = vv_name_wwn(destImage.SOURCE)
 
     # connect and login to 3PAR
-    from drivers import _3par
     _3par.login()
 
     # export volume to backup server
