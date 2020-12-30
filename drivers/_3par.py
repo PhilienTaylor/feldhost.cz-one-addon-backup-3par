@@ -153,9 +153,7 @@ def backup_live(one, image, vm, vm_disk_id, verbose):
     if verbose:
         logging.info('Backup image now...')
     dev = '/dev/mapper/3%s' % wwn
-    result = borgbackup(image.ID, dev, image.SIZE)
-    if verbose:
-        logging.info(result)
+    borgbackup(image.ID, dev, image.SIZE)
 
     # flush volume
     if verbose:
@@ -179,9 +177,7 @@ def backup_live(one, image, vm, vm_disk_id, verbose):
     # prune old backups
     if verbose:
         logging.info('Pruning old backups...')
-    result = borgprune(image.ID)
-    if verbose:
-        logging.info(result)
+    borgprune(image.ID)
 
 
 def backup(image, verbose):
@@ -207,9 +203,7 @@ def backup(image, verbose):
     if verbose:
         logging.info('Backup image now...')
     dev = '/dev/mapper/3%s' % wwn
-    result = borgbackup(image.ID, dev, image.SIZE)
-    if verbose:
-        logging.info(result)
+    borgbackup(image.ID, dev, image.SIZE)
 
     # flush volume
     if verbose:
@@ -227,18 +221,14 @@ def backup(image, verbose):
     # prune old backups
     if verbose:
         logging.info('Pruning old backups...')
-    result = borgprune(image.ID)
-    if verbose:
-        logging.info(result)
+    borgprune(image.ID)
 
 
 def prune(image, verbose):
     # prune old backups
     if verbose:
         logging.info('Pruning old backups...')
-    result = borgprune(image.ID)
-    if verbose:
-        logging.info(result)
+    borgprune(image.ID)
 
 
 def borginit(image_id):
