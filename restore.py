@@ -1,11 +1,14 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import argparse
 import os
 import subprocess
 import sys
 import time
-from StringIO import StringIO
+try:
+    from StringIO import StringIO ## for Python 2
+except ImportError:
+    from io import StringIO ## for Python 3
 import functions
 from drivers import _3par
 
@@ -72,7 +75,7 @@ def allocateImage(one, name, image, datetime, datastore):
 
         return image
     except Exception as ex:
-        print ex
+        print(ex)
         exit(1)
 
 
@@ -84,14 +87,14 @@ def _list(one, args):
     name, wwn = vv_name_wwn(image.SOURCE)
 
     try:
-        result = subprocess.check_output('borg list %s/%s | grep -Po "[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}"' % (config.BACKUP_PATH, image.ID), shell=True)
+        result = subprocess.check_output('borg list %s/%s | grep -Po "[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}"' % (config.BACKUP_PATH, image.ID), shell=True).decode('utf-8')
 
         if args.extended:
             s = StringIO(result)
             for line in s:
                 subprocess.check_call('borg info %s/%s::%s' % (config.BACKUP_PATH, image.ID, line), shell=True)
         else:
-            print result
+            print(result)
 
     except subprocess.CalledProcessError as ex:
         raise Exception('Can not list borg backups', ex)
@@ -137,26 +140,26 @@ def _restore(one, args):
     _3par.login()
 
     # export volume to backup server
-    print 'Exporting volume %s to backup server...' % destName
+    print('Exporting volume %s to backup server...' % destName)
     lun_no = _3par.export_vv(destName, config.EXPORT_HOST)
 
     # discover volume
-    print 'Volume is exported as LUN %d with WWN %s on %s. Discovering LUN...' % (lun_no, destWwn, config.EXPORT_HOST)
+    print('Volume is exported as LUN %d with WWN %s on %s. Discovering LUN...' % (lun_no, destWwn, config.EXPORT_HOST))
     subprocess.check_call('%s/sh/discover_lun.sh %d %s' % (base_path, lun_no, destWwn), shell=True)
 
     # restore voleme from backup
-    print 'Restore volume from backup to exported lun'
+    print('Restore volume from backup to exported lun')
     # calculate size
     size = destImage.SIZE * 1024 * 1024
-    print subprocess.check_output('borg extract --stdout %s/%s::%s | pv -pterab -s %d | dd of=/dev/mapper/3%s bs=%s' % (config.BACKUP_PATH, srcImage.ID, args.datetime, size, destWwn, args.bs),
+    subprocess.check_output('borg extract --stdout %s/%s::%s | pv -pterab -s %d | dd of=/dev/mapper/3%s bs=%s' % (config.BACKUP_PATH, srcImage.ID, args.datetime, size, destWwn, args.bs),
                                   shell=True)
 
     # flush volume
-    print 'Flushing LUN...'
+    print('Flushing LUN...')
     subprocess.check_call('%s/sh/flush_lun.sh %s' % (base_path, destWwn), shell=True)
 
     # unexport volume
-    print 'Unexporting volume %s from backup server...' % destName
+    print('Unexporting volume %s from backup server...' % destName)
     _3par.unexport_vv(destName, config.EXPORT_HOST)
 
     _3par.logout()
@@ -176,5 +179,5 @@ try:
     globals()[('_%s' % args.task)](one, args)
 except Exception as ex:
     # something unexpected happened
-    print ex
+    print(ex)
     exit(1)

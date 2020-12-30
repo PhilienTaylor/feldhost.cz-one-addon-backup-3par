@@ -14,7 +14,7 @@ def bool_arg(string):
 
 
 def list_of_int_arg(string):
-    return map(int, string.split(','))
+    return list(map(int, string.split(',')))
 
 
 def list_arg(string):

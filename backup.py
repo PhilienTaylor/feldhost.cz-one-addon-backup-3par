@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import logging
 from multiprocessing import Pool
@@ -17,7 +17,7 @@ logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=lo
 # init multi processing pool
 pool = Pool(g.args.parallel)
 
-results = pool.map(functions.backup_image, [image for key, image in sorted(g.images.iteritems())])
+results = pool.map(functions.backup_image, [image for key, image in sorted(g.images.items())])
 
 pool.close()
 
