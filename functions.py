@@ -3,6 +3,7 @@ import smtplib
 import config
 import datetime
 import time
+import subprocess
 import globals as g
 import pyone
 from drivers import _3par
@@ -225,6 +226,19 @@ def backup_image(image):
             if g.args.verbose:
                 logging.info('Locking VM %d:%s' % (vmId, vm.NAME))
             one.vm.lock(vmId, 4)
+
+        # execute filesystem trim command before actual backup
+        if config.LIBVIRT_USE_DOMFSTRIM:
+            if g.args.verbose:
+                logging.info('Executing domfstrim on VM %d:%s and disk %d:%s' % (vmId, vm.NAME, image.ID, image.NAME))
+
+            hostname = get_vm_hostname(vm)
+            try:
+                subprocess.check_call("ssh -i %s oneadmin@%s 'virsh -c %s domfstrim one-%d'" % (
+                    config.SSH_IDENTITY_FILE, hostname, config.LIBVIRT_URI, vmId), shell=True)
+            except Exception as ex:
+                logging.error(ex)
+                send_email('Error executing filesystem trim VM %d:%s and disk %d:%s: "%s"' % (vmId, vm.NAME, image.ID, image.NAME, ex))
 
         try:
             _3par.backup_live(one, image, vm, vmDiskId, g.args.verbose)

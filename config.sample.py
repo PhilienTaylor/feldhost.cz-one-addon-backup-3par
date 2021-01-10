@@ -13,6 +13,17 @@ BACKUP_PATH = '/var/data/backups/'
 # OpenNebula 5.6+ required
 LOCK_RESOURCES = True
 
+# calls virsh domfstrim before snapshot is create
+LIBVIRT_USE_DOMFSTRIM = True
+
+# Libvirt hypervisor connection URI
+# Only used if DOMFSTRIM is enabled
+LIBVIRT_URI = 'qemu:///system'
+
+# Path to private key file used to connect to compute nodes as oneadmin user
+# Only used if DOMFSTRIM is enabled
+SSH_IDENTITY_FILE = '/path/to/private.key'
+
 # 3PAR connection details
 _3PAR = {
     'api': 'https://3par:8080/api/v1',
