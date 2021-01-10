@@ -12,9 +12,6 @@ def initialize():
     parser.add_argument('-i', '--image',
                         help='Image id or comma separated list of image ids to backup. Omit for backup all images',
                         type=functions.list_of_int_arg)
-    parser.add_argument('-S', '--startImage',
-                        help='Image id to start backup from. Backups all following images including defined one',
-                        type=int)
     parser.add_argument('-a', '--datastore',
                         help='Datastore id or comma separated list of datastore ids to backup from. Omit to backup from all datastores to backup',
                         type=functions.list_of_int_arg)

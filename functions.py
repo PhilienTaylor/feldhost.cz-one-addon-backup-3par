@@ -118,19 +118,6 @@ def filter_images(all_images, datastores, args):
 
         all_images = images
 
-    # user specified start image id, so filter out all previous images
-    if args.startImage:
-        images = {}
-        found = False
-        for image_key in all_images:
-            image = all_images[image_key]
-            if not found and image.ID == args.startImage:
-                found = True
-
-            if found:
-                images[image.ID] = image
-        return images
-
     return all_images
 
 
