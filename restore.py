@@ -104,9 +104,6 @@ def _info(one, args):
     # get opennebula image
     image = one.image.info(args.image)
 
-    # get source name and wwn
-    name, wwn = vv_name_wwn(image.SOURCE)
-
     subprocess.check_call('borg info %s/%s::%s' % (config.BACKUP_PATH, image.ID, args.datetime), shell=True)
 
 
@@ -117,7 +114,6 @@ def _restore(one, args):
 
     # get info about src image
     srcImage = one.image.info(args.image)
-    srcName, srcWwn = vv_name_wwn(srcImage.SOURCE)
 
     # validate if given datetime exists
     subprocess.check_call('borg info %s/%s::%s' % (config.BACKUP_PATH, srcImage.ID, args.datetime), shell=True)
