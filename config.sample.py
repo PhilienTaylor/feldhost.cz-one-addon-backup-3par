@@ -5,9 +5,8 @@ ONE = {
     'password': 'pass'
 }
 
-# Path to borgbackup repo
-BACKUP_REPO = '/var/data/backups/repo/'
-# backup path used for parallel backups where each image have own repo
+# Where to store borg backup repos
+# each image have own repo automatically created
 BACKUP_PATH = '/var/data/backups/'
 
 # Lock Image and VM during backup
