@@ -228,7 +228,7 @@ def backup_image(image):
                 send_email('Error executing filesystem trim VM %d:%s and disk %d:%s: "%s"' % (vmId, vm.NAME, image.ID, image.NAME, ex))
 
         try:
-            _3par.backup_live(one, image, vm, vmDiskId, g.args.verbose)
+            _3par.backup_live(one, image, vm, vmDiskId, g.args.verbose, g.args.bs)
         except Exception as ex:
             logging.error(ex)
             send_email('Error backup image %d:%s: "%s"' % (image.ID, image.NAME, ex))
@@ -248,7 +248,7 @@ def backup_image(image):
             logging.info('Backup persistent not attached image %d:%s' % (image.ID, image.NAME))
 
         try:
-            _3par.backup(image, g.args.verbose)
+            _3par.backup(image, g.args.verbose, g.args.bs)
         except Exception as ex:
             logging.error(ex)
             send_email('Error backup image %d:%s: "%s"' % (image.ID, image.NAME, ex))
@@ -262,7 +262,7 @@ def backup_image(image):
             logging.info('Backup non-persistent image %d:%s' % (image.ID, image.NAME))
 
         try:
-            _3par.backup(image, g.args.verbose)
+            _3par.backup(image, g.args.verbose, g.args.bs)
         except Exception as ex:
             logging.error(ex)
             send_email('Error backup image %d:%s: "%s"' % (image.ID, image.NAME, ex))

@@ -80,7 +80,7 @@ def unexport_vv(name, host):
     cl.deleteVLUN(name, vlun.get('lun'), host)
 
 
-def backup_live(one, image, vm, vm_disk_id, verbose):
+def backup_live(one, image, vm, vm_disk_id, verbose, bs):
     # create live snapshot of image
     if verbose:
         logging.info('Creating live snapshot...')
@@ -153,7 +153,7 @@ def backup_live(one, image, vm, vm_disk_id, verbose):
     if verbose:
         logging.info('Backup image now...')
     dev = '/dev/mapper/3%s' % wwn
-    borgbackup(image.ID, dev, image.SIZE)
+    borgbackup(image.ID, dev, image.SIZE, bs)
 
     # flush volume
     if verbose:
@@ -180,7 +180,7 @@ def backup_live(one, image, vm, vm_disk_id, verbose):
     borgprune(image.ID)
 
 
-def backup(image, verbose):
+def backup(image, verbose, bs):
     # get source name and wwn
     name, wwn = vv_name_wwn(image.SOURCE)
 
@@ -203,7 +203,7 @@ def backup(image, verbose):
     if verbose:
         logging.info('Backup image now...')
     dev = '/dev/mapper/3%s' % wwn
-    borgbackup(image.ID, dev, image.SIZE)
+    borgbackup(image.ID, dev, image.SIZE, bs)
 
     # flush volume
     if verbose:
@@ -238,7 +238,7 @@ def borginit(image_id):
         raise Exception('Can not init borgbackup repo!', ex)
 
 
-def borgbackup(image_id, dev, size_mb):
+def borgbackup(image_id, dev, size_mb, bs):
     size = size_mb*1024*1024
 
     # check if repo exists
@@ -246,7 +246,7 @@ def borgbackup(image_id, dev, size_mb):
         borginit(image_id)
 
     try:
-        return subprocess.check_output('dd if=%s bs=256K | pv -pterab -s %d | borg create --compression auto,zstd,3 %s/%s::{now} -' % (dev, size, config.BACKUP_PATH, image_id), shell=True)
+        return subprocess.check_output('dd if=%s bs=%s | pv -pterab -s %d | borg create --compression auto,zstd,3 %s/%s::{now} -' % (dev, bs, size, config.BACKUP_PATH, image_id), shell=True)
     except subprocess.CalledProcessError as ex:
         raise Exception('Can not backup dev using borgbackup!', ex)
 
