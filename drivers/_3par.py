@@ -246,7 +246,7 @@ def borgbackup(image_id, dev, size_mb, bs):
         borginit(image_id)
 
     try:
-        return subprocess.check_output('dd if=%s bs=%s | pv -pterab -s %d | borg create --compression auto,zstd,3 %s/%s::{now} -' % (dev, bs, size, config.BACKUP_PATH, image_id), shell=True)
+        return subprocess.check_output('dd if=%s bs=%s | pv -pterab -s %d | borg create --compression lz4 %s/%s::{now} -' % (dev, bs, size, config.BACKUP_PATH, image_id), shell=True)
     except subprocess.CalledProcessError as ex:
         raise Exception('Can not backup dev using borgbackup!', ex)
 
