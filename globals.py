@@ -23,7 +23,7 @@ def initialize():
     parser.add_argument('-P', '--pruneOnly', help='Don\'t backup anything, just prune old backups', action='store_true')
     parser.add_argument('-p', '--parallel', help='How much backup process can run in parallel, default 5', default=5,
                         type=int)
-    parser.add_argument('-bs', '--bs', help='Define Block Size for DD command. Default 10M', default='10M')
+    parser.add_argument('-bs', '--bs', help='Define Block Size for DD command. Default 10M', default='32k')
     parser.add_argument('-D', '--deployments',
                         help='Not implemented yet! Backup also deployments files from system datastores',
                         action='store_true')

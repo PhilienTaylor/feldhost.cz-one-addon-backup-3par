@@ -9,7 +9,6 @@ try:
     from StringIO import StringIO ## for Python 2
 except ImportError:
     from io import StringIO ## for Python 3
-import functions
 from drivers import _3par
 
 import config
@@ -35,11 +34,11 @@ listBackupsParser.add_argument('-e', '--extended', help='Show extended info for 
 
 # Info backup task parser
 infoBackupParser = subparsers.add_parser('info', parents=[commonParser], help='Get info about specific backup for given image')
-infoBackupParser.add_argument('-dt', '--datetime', help='Define specific backup by its datetime. Use list task to get available backups', required=True)
+infoBackupParser.add_argument('-sid', '--snapshotId', help='Define specific backup by its snapshot ID. Use list task to get available backups', required=True)
 
 # Restore specific backup task parser
 restoreBackupParser = subparsers.add_parser('restore', parents=[commonParser], help='Restore specific backup for given image')
-restoreBackupParser.add_argument('-dt', '--datetime', help='Define specific backup by its datetime. Use list task to get available backups', required=True)
+restoreBackupParser.add_argument('-sid', '--snapshotId', help='Define specific backup by its snapshot ID. Use list task to get available backups', required=True)
 restoreBackupParser.add_argument('-ti', '--targetImage', help='Target image ID in OpenNebula datastore', type=int)
 restoreBackupParser.add_argument('-tds', '--targetDatastore', help='Target OpenNebula datastore where new image to be create', type=int)
 restoreBackupParser.add_argument('-bs', '--bs', help='Define Block Size for DD command. Default 10M', default='10M')
@@ -87,24 +86,24 @@ def _list(one, args):
     name, wwn = vv_name_wwn(image.SOURCE)
 
     try:
-        result = subprocess.check_output('borg list %s/%s | grep -Po "[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}"' % (config.BACKUP_PATH, image.ID), shell=True).decode('utf-8')
+        result = subprocess.check_output('RESTIC_PASSWORD="none" %s -r %s/%s snapshots | grep -Po "[a-z0-9]+\s\s[0-9]{4}-[0-9]{2}-[0-9]{2}\s[0-9]{2}:[0-9]{2}:[0-9]{2}"' % (config.RESTIC_BIN, config.BACKUP_PATH, image.ID), shell=True).decode('utf-8')
 
         if args.extended:
             s = StringIO(result)
             for line in s:
-                subprocess.check_call('borg info %s/%s::%s' % (config.BACKUP_PATH, image.ID, line), shell=True)
+                subprocess.check_call('RESTIC_PASSWORD="none" %s stats -r %s/%s %s' % (config.RESTIC_BIN, config.BACKUP_PATH, image.ID, line), shell=True)
         else:
             print(result)
 
     except subprocess.CalledProcessError as ex:
-        raise Exception('Can not list borg backups', ex)
+        raise Exception('Can not list restic backups', ex)
 
 
 def _info(one, args):
     # get opennebula image
     image = one.image.info(args.image)
 
-    subprocess.check_call('borg info %s/%s::%s' % (config.BACKUP_PATH, image.ID, args.datetime), shell=True)
+    subprocess.check_call('RESTIC_PASSWORD="none" %s stats -r %s/%s %s' % (config.RESTIC_BIN, config.BACKUP_PATH, image.ID, args.snapshotId), shell=True)
 
 
 def _restore(one, args):
@@ -116,7 +115,7 @@ def _restore(one, args):
     srcImage = one.image.info(args.image)
 
     # validate if given datetime exists
-    subprocess.check_call('borg info %s/%s::%s' % (config.BACKUP_PATH, srcImage.ID, args.datetime), shell=True)
+    subprocess.check_call('RESTIC_PASSWORD="none" %s ls %s -r %s/%s' % (config.RESTIC_BIN, args.snapshotId, config.BACKUP_PATH, srcImage.ID), shell=True)
 
     if args.targetImage:
         # get info about dest image
@@ -125,9 +124,17 @@ def _restore(one, args):
         if destImage.STATE != 1:
             raise Exception('Target image is not in READY state!')
     elif args.targetDatastore:
-        date, time = split_datetime(args.datetime)
+        datetime = subprocess.check_output('RESTIC_PASSWORD="none" %s -r %s/%s snapshots %s | grep -Po "[0-9]{4}-[0-9]{2}-[0-9]{2}\s[0-9]{2}:[0-9]{2}:[0-9]{2}"' % (config.RESTIC_BIN, config.BACKUP_PATH, srcImage.ID, args.snapshotId), shell=True).decode('utf-8')
+        datetime = datetime.replace(' ', 'T')
+        date, dtime = split_datetime(datetime)
         restoreName = '%s-restore-%s' % (srcImage.NAME, date)
-        destImage = allocateImage(one, restoreName, srcImage, args.datetime, args.targetDatastore)
+        destImage = allocateImage(one, restoreName, srcImage, datetime, args.targetDatastore)
+
+    # restore disk image to tmp location
+    print('Restore volume from backup to tmp location')
+    subprocess.check_call('RESTIC_PASSWORD="none" %s -r %s/%s restore %s --target %s/restore_%s --path /stdin' % (
+    config.RESTIC_BIN, config.BACKUP_PATH, srcImage.ID, args.snapshotId, config.RESTORE_TMP_PATH, srcImage.ID),
+                          shell=True)
 
     # get vv name and wwn
     destName, destWwn = vv_name_wwn(destImage.SOURCE)
@@ -141,18 +148,27 @@ def _restore(one, args):
 
     # discover volume
     print('Volume is exported as LUN %d with WWN %s on %s. Discovering LUN...' % (lun_no, destWwn, config.EXPORT_HOST))
-    subprocess.check_call('%s/sh/discover_lun.sh %d %s' % (base_path, lun_no, destWwn), shell=True)
+    try:
+        subprocess.check_call('%s/sh/discover_lun.sh %d %s' % (base_path, lun_no, destWwn), shell=True)
+    except subprocess.CalledProcessError as ex:
+        raise Exception('Can not discover LUN', ex)
 
     # restore voleme from backup
-    print('Restore volume from backup to exported lun')
+    print('Restore volume from tmp location to exported lun')
     # calculate size
     size = destImage.SIZE * 1024 * 1024
-    subprocess.check_output('borg extract --stdout %s/%s::%s | pv -pterab -s %d | dd of=/dev/mapper/3%s bs=%s' % (config.BACKUP_PATH, srcImage.ID, args.datetime, size, destWwn, args.bs),
+    subprocess.check_call('set -o pipefail && dd if=%s/restore_%s/stdin bs=%s iflag=direct | pv -pterab -s %d | dd of=/dev/mapper/3%s bs=%s iflag=fullblock oflag=direct' % (config.RESTORE_TMP_PATH, srcImage.ID, args.bs, size, destWwn, args.bs),
                                   shell=True)
+
+    print('Remove volume from tmp location')
+    subprocess.check_call('rm -rf %s/restore_%s' % (config.RESTORE_TMP_PATH, srcImage.ID), shell=True)
 
     # flush volume
     print('Flushing LUN...')
-    subprocess.check_call('%s/sh/flush_lun.sh %s' % (base_path, destWwn), shell=True)
+    try:
+        subprocess.check_call('%s/sh/flush_lun.sh %s' % (base_path, destWwn), shell=True)
+    except subprocess.CalledProcessError as ex:
+        raise Exception('Can not flush LUN', ex)
 
     # unexport volume
     print('Unexporting volume %s from backup server...' % destName)

@@ -153,7 +153,12 @@ def backup_live(one, image, vm, vm_disk_id, verbose, bs):
     if verbose:
         logging.info('Backup image now...')
     dev = '/dev/mapper/3%s' % wwn
-    borgbackup(image.ID, dev, image.SIZE, bs)
+    result = resticbackup(image.ID, dev, image.SIZE, bs, verbose)
+
+    if verbose:
+        logging.info(result)
+        result = resticbackup_info(image.ID)
+        logging.info(result)
 
     # flush volume
     if verbose:
@@ -177,7 +182,9 @@ def backup_live(one, image, vm, vm_disk_id, verbose, bs):
     # prune old backups
     if verbose:
         logging.info('Pruning old backups...')
-    borgprune(image.ID)
+    result = resticprune(image.ID)
+    if verbose:
+        logging.info(result)
 
 
 def backup(image, verbose, bs):
@@ -203,7 +210,12 @@ def backup(image, verbose, bs):
     if verbose:
         logging.info('Backup image now...')
     dev = '/dev/mapper/3%s' % wwn
-    borgbackup(image.ID, dev, image.SIZE, bs)
+    result = resticbackup(image.ID, dev, image.SIZE, bs, verbose)
+
+    if verbose:
+        logging.info(result)
+        result = resticbackup_info(image.ID)
+        logging.info(result)
 
     # flush volume
     if verbose:
@@ -221,45 +233,51 @@ def backup(image, verbose, bs):
     # prune old backups
     if verbose:
         logging.info('Pruning old backups...')
-    borgprune(image.ID)
+    result = resticprune(image.ID)
+    if verbose:
+        logging.info(result)
 
 
 def prune(image, verbose):
     # prune old backups
     if verbose:
         logging.info('Pruning old backups...')
-    borgprune(image.ID)
+    result = resticprune(image.ID)
+    if verbose:
+        logging.info(result)
 
 
-def borginit(image_id):
+def resticinit(image_id):
     try:
-        return subprocess.check_output('borg init -e none %s/%s' % (config.BACKUP_PATH, image_id), shell=True)
+        return subprocess.check_output('RESTIC_PASSWORD="none" %s init --repo %s/%s' % (config.RESTIC_BIN, config.BACKUP_PATH, image_id), shell=True).decode('utf-8')
     except subprocess.CalledProcessError as ex:
-        raise Exception('Can not init borgbackup repo!', ex)
+        raise Exception('Can not init restic repo!', ex)
 
 
-def borgbackup(image_id, dev, size_mb, bs):
+def resticbackup(image_id, dev, size_mb, bs, verbose):
     size = size_mb*1024*1024
 
     # check if repo exists
     if not os.path.exists('%s/%s' % (config.BACKUP_PATH, image_id)):
-        borginit(image_id)
+        result = resticinit(image_id)
+        if verbose:
+            logging.info(result)
 
     try:
-        return subprocess.check_output('dd if=%s bs=%s | pv -pterab -s %d | borg create --compression lz4 %s/%s::{now} -' % (dev, bs, size, config.BACKUP_PATH, image_id), shell=True)
+        return subprocess.check_output('set -o pipefail && dd if=%s bs=%s | pv -pterab -s %d | RESTIC_PASSWORD="none" %s -r %s/%s backup --stdin' % (dev, bs, size, config.RESTIC_BIN, config.BACKUP_PATH, image_id), shell=True).decode('utf-8')
     except subprocess.CalledProcessError as ex:
-        raise Exception('Can not backup dev using borgbackup!', ex)
+        raise Exception('Can not backup dev using restic!', ex)
 
 
-def borgprune(image_id):
+def resticprune(image_id):
     try:
-        return subprocess.check_output('borg prune -v --list --stats --keep-daily=7 --keep-weekly=4 --keep-monthly=6 %s/%s' % (config.BACKUP_PATH, image_id), shell=True)
+        return subprocess.check_output('RESTIC_PASSWORD="none" %s forget --tag "" --prune --keep-daily 7 --keep-weekly 4 --keep-monthly 6 -r %s/%s' % (config.RESTIC_BIN, config.BACKUP_PATH, image_id), shell=True).decode('utf-8')
     except subprocess.CalledProcessError as ex:
-        raise Exception('Can not run borg prune!', ex)
+        raise Exception('Can not run restic prune!', ex)
 
 
-def borgbackup_info(image_id):
+def resticbackup_info(image_id):
     try:
-        return subprocess.check_output('borg info %s/%s' % (config.BACKUP_PATH, image_id), shell=True)
+        return subprocess.check_output('RESTIC_PASSWORD="none" %s stats -r %s/%s --mode raw-data' % (config.RESTIC_BIN, config.BACKUP_PATH, image_id), shell=True).decode('utf-8')
     except subprocess.CalledProcessError as ex:
-        raise Exception('Can not issue borg info command on repo %s/%s!' % (config.BACKUP_PATH, image_id), ex)
+        raise Exception('Can not issue restic stats command on repo %s/%s!' % (config.BACKUP_PATH, image_id), ex)

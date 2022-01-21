@@ -7,7 +7,10 @@ ONE = {
 
 # Where to store borg backup repos
 # each image have own repo automatically created
-BACKUP_PATH = '/var/data/backups/'
+BACKUP_PATH = '/var/data/backups'
+
+# Where to store temporary restore disk files
+RESTORE_TMP_PATH = '/var/data/tmp'
 
 # Lock Image and VM during backup
 # OpenNebula 5.6+ required
@@ -39,3 +42,6 @@ EXPORT_HOST = 'backup.hostname'
 # email settings, we use local email server localhost:25
 EMAIL_SEND_FROM = 'backup@domain.tld'
 EMAIL_SEND_TO = 'admin@domain.tld'
+
+# restic
+RESTIC_BIN = '/path/to/restic'
