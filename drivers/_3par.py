@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 import subprocess
 import sys
 import time
@@ -43,6 +44,18 @@ def create_snapshot_name(src_name, snap_id):
     name = '{srcName}.{snapId}'.format(srcName=src_name, snapId=snap_id)
 
     return name
+
+
+def get_list_of_exported_volumes():
+    cmd = ['showvv', '-showcols', 'VV_WWN,Name,CopyOf', '-host', config.EXPORT_HOST]
+    result = cl._run(cmd)
+    volumes = {}
+    for line in result:
+        if line.startswith('60002AC'):
+            volume = line.split(',')
+            volumes[volume[0].lower()] = {'name': volume[1], 'parent': volume[2]}
+
+    return volumes
 
 
 def export_vv(name, host):
