@@ -166,12 +166,14 @@ def backup_live(one, image, vm, vm_disk_id, verbose, bs):
     if verbose:
         logging.info('Backup image now...')
     dev = '/dev/mapper/3%s' % wwn
-    result = resticbackup(image.ID, dev, image.SIZE, bs, verbose)
+    resticbackup(image.ID, dev, image.SIZE, bs, verbose)
 
     if verbose:
-        logging.info(result)
         result = resticbackup_info(image.ID)
         logging.info(result)
+
+    # wait a bit before flushing
+    time.sleep(5)
 
     # flush volume
     if verbose:
@@ -223,12 +225,14 @@ def backup(image, verbose, bs):
     if verbose:
         logging.info('Backup image now...')
     dev = '/dev/mapper/3%s' % wwn
-    result = resticbackup(image.ID, dev, image.SIZE, bs, verbose)
+    resticbackup(image.ID, dev, image.SIZE, bs, verbose)
 
     if verbose:
-        logging.info(result)
         result = resticbackup_info(image.ID)
         logging.info(result)
+
+    # wait a bit before flushing
+    time.sleep(5)
 
     # flush volume
     if verbose:
@@ -277,7 +281,11 @@ def resticbackup(image_id, dev, size_mb, bs, verbose):
             logging.info(result)
 
     try:
-        return subprocess.check_output('set -o pipefail && dd if=%s bs=%s | pv -pterab -s %d | RESTIC_PASSWORD="none" %s -r %s/%s backup --stdin' % (dev, bs, size, config.RESTIC_BIN, config.BACKUP_PATH, image_id), shell=True).decode('utf-8')
+        pv = ''
+        if verbose:
+            pv = ' | pv -pterab -s %d' % size
+
+        return subprocess.check_call('set -o pipefail && dd if=%s bs=%s iflag=direct%s | RESTIC_PASSWORD="none" %s -r %s/%s backup --stdin' % (dev, bs, pv, config.RESTIC_BIN, config.BACKUP_PATH, image_id), shell=True)
     except subprocess.CalledProcessError as ex:
         raise Exception('Can not backup dev using restic!', ex)
 
