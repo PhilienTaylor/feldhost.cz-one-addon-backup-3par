@@ -155,6 +155,9 @@ def backup_live(one, image, vm, vm_disk_id, verbose, bs):
     dev = '/dev/mapper/3%s' % wwn
     borgbackup(image.ID, dev, image.SIZE, bs)
 
+    # wait a bit before flushing
+    time.sleep(5)
+
     # flush volume
     if verbose:
         logging.info('Flushing LUN...')
@@ -205,6 +208,9 @@ def backup(image, verbose, bs):
     dev = '/dev/mapper/3%s' % wwn
     borgbackup(image.ID, dev, image.SIZE, bs)
 
+    # wait a bit before flushing
+    time.sleep(5)
+
     # flush volume
     if verbose:
         logging.info('Flushing LUN...')
@@ -246,7 +252,7 @@ def borgbackup(image_id, dev, size_mb, bs):
         borginit(image_id)
 
     try:
-        return subprocess.check_output('dd if=%s bs=%s | pv -pterab -s %d | borg create --compression lz4 %s/%s::{now} -' % (dev, bs, size, config.BACKUP_PATH, image_id), shell=True)
+        return subprocess.check_output('set -o pipefail && dd if=%s bs=%s | pv -pterab -s %d | borg create --compression lz4 %s/%s::{now} -' % (dev, bs, size, config.BACKUP_PATH, image_id), shell=True)
     except subprocess.CalledProcessError as ex:
         raise Exception('Can not backup dev using borgbackup!', ex)
 

@@ -9,7 +9,6 @@ try:
     from StringIO import StringIO ## for Python 2
 except ImportError:
     from io import StringIO ## for Python 3
-import functions
 from drivers import _3par
 
 import config
@@ -147,12 +146,15 @@ def _restore(one, args):
     print('Restore volume from backup to exported lun')
     # calculate size
     size = destImage.SIZE * 1024 * 1024
-    subprocess.check_output('borg extract --stdout %s/%s::%s | pv -pterab -s %d | dd of=/dev/mapper/3%s bs=%s' % (config.BACKUP_PATH, srcImage.ID, args.datetime, size, destWwn, args.bs),
+    subprocess.check_output('set -o pipefail && borg extract --stdout %s/%s::%s | pv -pterab -s %d | dd of=/dev/mapper/3%s bs=%s iflag=fullblock oflag=direct' % (config.BACKUP_PATH, srcImage.ID, args.datetime, size, destWwn, args.bs),
                                   shell=True)
 
     # flush volume
     print('Flushing LUN...')
-    subprocess.check_call('%s/sh/flush_lun.sh %s' % (base_path, destWwn), shell=True)
+    try:
+        subprocess.check_call('%s/sh/flush_lun.sh %s' % (base_path, destWwn), shell=True)
+    except subprocess.CalledProcessError as ex:
+        raise Exception('Can not flush LUN', ex)
 
     # unexport volume
     print('Unexporting volume %s from backup server...' % destName)
