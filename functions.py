@@ -144,7 +144,7 @@ def backup_image(image):
     # -------------------------
     # Connect and login to 3PAR
     # -------------------------
-    _3par.login()
+    _3par.login(datastore.TEMPLATE.get('API_ENDPOINT'), datastore.TEMPLATE.get('IP'))
 
     # prune only?
     if g.args.pruneOnly:
