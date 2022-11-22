@@ -11,11 +11,17 @@ import config
 import functions
 
 base_path = os.path.abspath(os.path.dirname(sys.argv[0]))
-cl = client.HPE3ParClient(config._3PAR['api'], False, config._3PAR['secure'], None, True)
+cl = None
 
+def login(api=None, ip=None):
+    global cl
 
-def login():
-    cl.setSSHOptions(config._3PAR['ip'], config._3PAR['username'], config._3PAR['password'])
+    if api is None or ip is None:
+        cl = client.HPE3ParClient(config._3PAR['api'], False, config._3PAR['secure'], None, True)
+        cl.setSSHOptions(config._3PAR['ip'], config._3PAR['username'], config._3PAR['password'])
+    else:
+        cl = client.HPE3ParClient(api, False, config._3PAR['secure'], None, True)
+        cl.setSSHOptions(ip, config._3PAR['username'], config._3PAR['password'])
 
     try:
         cl.login(config._3PAR['username'], config._3PAR['password'])
@@ -25,7 +31,10 @@ def login():
 
 
 def logout():
+    global cl
+
     cl.logout()
+    cl = None
 
 
 def vv_name(source):
