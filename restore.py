@@ -42,6 +42,7 @@ restoreBackupParser.add_argument('-dt', '--datetime', help='Define specific back
 restoreBackupParser.add_argument('-ti', '--targetImage', help='Target image ID in OpenNebula datastore', type=int)
 restoreBackupParser.add_argument('-tds', '--targetDatastore', help='Target OpenNebula datastore where new image to be create', type=int)
 restoreBackupParser.add_argument('-bs', '--bs', help='Define Block Size for DD command. Default 10M', default='10M')
+restoreBackupParser.add_argument('-sc', '--skipCheck', help='Skip check if disk is used', action='store_true')
 
 def vv_name_wwn(source):
     ex = source.split(':')
@@ -121,7 +122,7 @@ def _restore(one, args):
         # get info about dest image
         destImage = one.image.info(args.targetImage)
         # check state
-        if destImage.STATE != 1:
+        if not args.skipCheck and destImage.STATE != 1:
             raise Exception('Target image is not in READY state!')
     elif args.targetDatastore:
         date, time = split_datetime(args.datetime)
