@@ -11,10 +11,10 @@ BACKUP_PATH = '/var/data/backups/'
 
 # Lock Image and VM during backup
 # OpenNebula 5.6+ required
-LOCK_RESOURCES = True
+LOCK_RESOURCES = False
 
 # calls virsh domfstrim before snapshot is create
-LIBVIRT_USE_DOMFSTRIM = True
+LIBVIRT_USE_DOMFSTRIM = False
 
 # Libvirt hypervisor connection URI
 # Only used if DOMFSTRIM is enabled
