@@ -114,7 +114,6 @@ function discover_lun {
     WWN="$2"
     cat <<EOF
         $(rescan_scsi_bus "$LUN")
-        $(multipath_rescan)
 
         DEV="/dev/mapper/3$WWN"
 
@@ -124,15 +123,7 @@ function discover_lun {
             sleep 1
             COUNTER=\$((\$COUNTER + 1))
         done
-        if [ ! -e \$DEV ]; then
-            # Last chance to get our mapping
-            $(multipath_rescan)
-            COUNTER=1
-            while [ ! -e "\$DEV" ] && [ \$COUNTER -le 10 ]; do
-                sleep 1
-                COUNTER=\$((\$COUNTER + 1))
-            done
-        fi
+
         # Exit with error if mapping does not exist
         if [ ! -e \$DEV ]; then
             echo 'Mapping does not exists'
