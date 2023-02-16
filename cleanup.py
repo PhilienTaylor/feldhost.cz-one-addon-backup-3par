@@ -36,15 +36,15 @@ volumes = _3par.get_list_of_exported_volumes()
 
 # iterate over wwns
 for wwn in wwns:
+    # flush volume
+    print('Flushing LUN...')
+    try:
+        subprocess.check_call('%s/sh/flush_lun.sh %s' % (base_path, wwn), shell=True)
+    except subprocess.CalledProcessError as ex:
+        raise Exception('Can not flush LUN', ex)
+
     if wwn in volumes:
         name = volumes.get(wwn).get('name')
-
-        # flush volume
-        print('Flushing LUN...')
-        try:
-            subprocess.check_call('%s/sh/flush_lun.sh %s' % (base_path, wwn), shell=True)
-        except subprocess.CalledProcessError as ex:
-            raise Exception('Can not flush LUN', ex)
 
         # unexport volume
         print('Unexporting volume %s from backup server...' % name)
