@@ -121,6 +121,8 @@ def _restore(one, args):
     if args.targetImage:
         # get info about dest image
         destImage = one.image.info(args.targetImage)
+        # get datastore info
+        datastore = one.datastore.info(destImage.DATASTORE_ID)
         # check state
         if not args.skipCheck and destImage.STATE != 1:
             raise Exception('Target image is not in READY state!')
@@ -128,12 +130,14 @@ def _restore(one, args):
         date, time = split_datetime(args.datetime)
         restoreName = '%s-restore-%s' % (srcImage.NAME, date)
         destImage = allocateImage(one, restoreName, srcImage, args.datetime, args.targetDatastore)
+        # get datastore info
+        datastore = one.datastore.info(args.targetDatastore)
 
     # get vv name and wwn
     destName, destWwn = vv_name_wwn(destImage.SOURCE)
 
     # connect and login to 3PAR
-    _3par.login()
+    _3par.login(datastore.TEMPLATE.get('API_ENDPOINT'), datastore.TEMPLATE.get('IP'))
 
     # export volume to backup server
     print('Exporting volume %s to backup server...' % destName)
