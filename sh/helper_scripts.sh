@@ -90,7 +90,7 @@ EOF`
 function multipath_flush {
     local MAP_NAME
     MAP_NAME="$1"
-    echo "$SUDO $MULTIPATH -f $MAP_NAME"
+    echo "$SUDO $DMSETUP info $MAP_NAME && $SUDO $MULTIPATH -f $MAP_NAME"
 }
 
 function multipath_rescan {
