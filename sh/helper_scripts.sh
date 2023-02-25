@@ -163,15 +163,23 @@ function remove_lun {
           fi
       done
 
-      # Wait a bit for removing io paths
-      OPEN_COUNT=1
-      while [ "\${DM_SLAVE}" ] && [ \$OPEN_COUNT -gt 0 ]; do
+      # wait for auto remove multipath
+      EXISTS=1
+      COUNTER=1
+      while [ "\${DM_SLAVE}" ] && [ \$EXISTS -gt 0 ] && [ \$COUNTER -le 10 ]; do
           sleep 1
-          OPEN_COUNT=\$($SUDO $DMSETUP info 3$WWN | grep -P "Open\scount:" | grep -oP "[0-9]+")
+          EXISTS=\$($SUDO $MULTIPATH -ll 3$WWN | head -c1 | wc -c)
+          COUNTER=\$((\$COUNTER + 1))
       done
 
-      # flush only if multipath device exits
-      if [[ $($SUDO $MULTIPATH -ll 3$WWN | wc -c) -gt 0 ]]; then
+      if [[ \$EXISTS -gt 0 ]]; then
+          # Wait for releasing device
+          OPEN_COUNT=1
+          while [ \$OPEN_COUNT -gt 0 ]; do
+              sleep 1
+              OPEN_COUNT=\$($SUDO $DMSETUP info 3$WWN | grep -P "Open\scount:" | grep -oP "[0-9]+")
+          done
+
           $(multipath_flush "3$WWN")
       fi
 EOF
