@@ -163,7 +163,12 @@ function remove_lun {
           fi
       done
 
-      # OPEN_COUNT=\$($SUDO $DMSETUP info 3$WWN | grep -P "Open\scount:" | grep -oP "[0-9]+")
+      # Wait a bit for removing io paths
+      OPEN_COUNT=1
+      while [ "\${DM_SLAVE}" ] && [ \$OPEN_COUNT -gt 0 ]; do
+          sleep 1
+          OPEN_COUNT=\$($SUDO $DMSETUP info 3$WWN | grep -P "Open\scount:" | grep -oP "[0-9]+")
+      done
 
       $(multipath_flush "3$WWN")
 EOF
