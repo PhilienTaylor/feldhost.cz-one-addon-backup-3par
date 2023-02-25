@@ -90,7 +90,7 @@ EOF`
 function multipath_flush {
     local MAP_NAME
     MAP_NAME="$1"
-    echo "$SUDO $DMSETUP info $MAP_NAME && $SUDO $MULTIPATH -f $MAP_NAME"
+    echo "$SUDO $MULTIPATH -f $MAP_NAME"
 }
 
 function multipath_rescan {
@@ -170,6 +170,9 @@ function remove_lun {
           OPEN_COUNT=\$($SUDO $DMSETUP info 3$WWN | grep -P "Open\scount:" | grep -oP "[0-9]+")
       done
 
-      $(multipath_flush "3$WWN")
+      # flush only if multipath device exits
+      if [[ $($SUDO $MULTIPATH -ll 3$WWN | wc -c) -gt 0 ]]; then
+          $(multipath_flush "3$WWN")
+      fi
 EOF
 }
