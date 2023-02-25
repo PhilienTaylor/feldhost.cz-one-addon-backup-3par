@@ -178,7 +178,7 @@ def backup_live(one, image, vm, vm_disk_id, verbose, bs):
     borgbackup(image.ID, dev, image.SIZE, bs)
 
     # wait a bit before flushing
-    time.sleep(5)
+    time.sleep(10)
 
     # flush volume
     if verbose:
@@ -231,7 +231,7 @@ def backup(image, verbose, bs):
     borgbackup(image.ID, dev, image.SIZE, bs)
 
     # wait a bit before flushing
-    time.sleep(5)
+    time.sleep(10)
 
     # flush volume
     if verbose:
