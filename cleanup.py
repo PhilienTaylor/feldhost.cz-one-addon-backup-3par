@@ -40,7 +40,7 @@ for wwn in wwns:
         name = volumes.get(wwn).get('name')
 
         # flush volume
-        print('Flushing LUN...')
+        print('Flushing LUN 3%s...' % (wwn))
         try:
             subprocess.check_call('%s/sh/flush_lun.sh %s' % (base_path, wwn), shell=True)
         except subprocess.CalledProcessError as ex:
