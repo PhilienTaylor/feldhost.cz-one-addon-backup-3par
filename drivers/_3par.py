@@ -196,6 +196,21 @@ def backup_live(one, image, vm, vm_disk_id, verbose, bs):
     # delete snapshot
     if verbose:
         logging.info('Deleting snapshot...')
+
+    # check vm state before deleting snapshot
+    done = False
+    i = 0
+    while not done:
+        vm = one.vm.info(vm.ID)
+        if vm.LCM_STATE == 3 or vm.LCM_STATE == 0:
+            done = True
+        else:
+            if i > 3:
+                raise Exception('VM is in wrong STATE: %s LCM_STATE: %s' % (vm.STATE, vm.LCM_STATE))
+            i += 1
+            time.sleep(5)
+
+    # delete snapshot
     if not one.vm.disksnapshotdelete(vm.ID, vm_disk_id, snap_id):
         raise Exception('Can not delete snapshot! Check VM logs.')
 
