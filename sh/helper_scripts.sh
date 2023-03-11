@@ -151,13 +151,12 @@ function remove_lun {
     WWN="$1"
     cat <<EOF
       DEV="/dev/mapper/3$WWN"
-      DM_HOLDER=\$($SUDO $DMSETUP ls -o blkdevname | grep -Po "(?<=3$WWN\s\()[^)]+")
-      DM_SLAVE=\$(ls /sys/block/\${DM_HOLDER}/slaves)
+      SLAVES=\$($SUDO $MULTIPATH -r 3$WWN | grep -Eo 'sd[a-z]+')
 
       $(multipath_flush "3$WWN")
 
       unset device
-      for device in \${DM_SLAVE}
+      for device in \${SLAVES}
       do
           if [ -e /dev/\${device} ]; then
               $SUDO $BLOCKDEV --flushbufs /dev/\${device}
@@ -168,7 +167,7 @@ function remove_lun {
       # wait for auto remove multipath
       EXISTS=1
       COUNTER=1
-      while [ "\${DM_SLAVE}" ] && [ \$EXISTS -gt 0 ] && [ \$COUNTER -le 10 ]; do
+      while [ "\${SLAVES}" ] && [ \$EXISTS -gt 0 ] && [ \$COUNTER -le 10 ]; do
           sleep 1
           EXISTS=\$($SUDO $MULTIPATH -ll 3$WWN | head -c1 | wc -c)
           COUNTER=\$((\$COUNTER + 1))
