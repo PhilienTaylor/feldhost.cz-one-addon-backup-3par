@@ -8,10 +8,18 @@ LUN=$1
 WWN=$2
 
 DISCOVER_CMD=$(cat <<EOF
-    discover_lun "$LUN" "$WWN"
-    if [[ $? -ne 0 ]] then
-        remove_lun "$WWN" && discover_lun "$LUN" "$WWN"
-        if [[ $? -ne 0 ]] then
+    function discover {
+        $(discover_lun "$LUN" "$WWN")
+    }
+
+    function remove {
+        $(remove_lun "$WWN")
+    }
+
+    discover
+    if [[ \$? -ne 0 ]]; then
+        remove && discover
+        if [[ \$? -ne 0 ]]; then
             exit 1
         fi
     fi

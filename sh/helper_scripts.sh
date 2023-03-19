@@ -127,7 +127,7 @@ function discover_lun {
         # Exit with error if mapping does not exist
         if [ ! -e \$DEV ]; then
             echo 'Mapping does not exists'
-            exit 1
+            return 1
         fi
 
         DM_HOLDER=\$($SUDO $DMSETUP ls -o blkdevname | grep -Po "(?<=3$WWN\s\()[^)]+")
@@ -141,7 +141,7 @@ function discover_lun {
         # Exit with error if mapping has no path
         if [ ! "\${DM_SLAVE}" ]; then
             echo 'Mapping has no path'
-            exit 1
+            return 1
         fi
 EOF
 }
@@ -188,7 +188,7 @@ function remove_lun {
       EXISTS=\$($SUDO $MULTIPATH -r 3$WWN | head -c1 | wc -c)
       if [[ \$EXISTS -gt 0 ]]; then
           echo 'Mapping still exists'
-          exit 1
+          return 1
       fi
 EOF
 }
