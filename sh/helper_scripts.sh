@@ -183,5 +183,12 @@ function remove_lun {
 
           $(multipath_flush "3$WWN")
       fi
+
+      # final check
+      EXISTS=\$($SUDO $MULTIPATH -r 3$WWN | head -c1 | wc -c)
+      if [[ \$EXISTS -gt 0 ]]; then
+          echo 'Mapping still exists'
+          exit 1
+      fi
 EOF
 }

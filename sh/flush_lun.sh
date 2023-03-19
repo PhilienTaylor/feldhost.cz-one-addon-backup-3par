@@ -7,8 +7,10 @@ SCRIPT_PATH=$(dirname $0)
 WWN=$1
 
 FLUSH_CMD=$(cat <<EOF
-    set -e
     $(remove_lun "$WWN")
+    if [[ $? -ne 0 ]] then
+        exit 1
+    fi
 EOF
 )
 
