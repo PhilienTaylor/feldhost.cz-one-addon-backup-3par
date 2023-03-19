@@ -8,8 +8,13 @@ LUN=$1
 WWN=$2
 
 DISCOVER_CMD=$(cat <<EOF
-    set -e
-    $(discover_lun "$LUN" "$WWN")
+    discover_lun "$LUN" "$WWN"
+    if [[ $? -ne 0 ]] then
+        remove_lun "$WWN" && discover_lun "$LUN" "$WWN"
+        if [[ $? -ne 0 ]] then
+            exit 1
+        fi
+    fi
 EOF
 )
 
