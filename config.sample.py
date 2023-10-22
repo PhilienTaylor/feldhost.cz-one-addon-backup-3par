@@ -5,7 +5,7 @@ ONE = {
     'password': 'pass'
 }
 
-# Where to store borg backup repos
+# Where to store kopia backup repos
 # each image have own repo automatically created
 BACKUP_PATH = '/var/data/backups/'
 

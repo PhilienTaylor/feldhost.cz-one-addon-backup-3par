@@ -30,18 +30,13 @@ commonParser.add_argument('-v', '--verbose', help='Verbose mode', action='store_
 
 # List backups task parser
 listBackupsParser = subparsers.add_parser('list', parents=[commonParser], help='List available backup for given image')
-listBackupsParser.add_argument('-e', '--extended', help='Show extended info for each backup', action='store_true')
-
-# Info backup task parser
-infoBackupParser = subparsers.add_parser('info', parents=[commonParser], help='Get info about specific backup for given image')
-infoBackupParser.add_argument('-dt', '--datetime', help='Define specific backup by its datetime. Use list task to get available backups', required=True)
 
 # Restore specific backup task parser
 restoreBackupParser = subparsers.add_parser('restore', parents=[commonParser], help='Restore specific backup for given image')
-restoreBackupParser.add_argument('-dt', '--datetime', help='Define specific backup by its datetime. Use list task to get available backups', required=True)
+restoreBackupParser.add_argument('-sid', '--snapshotId', help='Define specific backup by its snapshot ID. Use list task to get available backups', required=True)
 restoreBackupParser.add_argument('-ti', '--targetImage', help='Target image ID in OpenNebula datastore', type=int)
 restoreBackupParser.add_argument('-tds', '--targetDatastore', help='Target OpenNebula datastore where new image to be create', type=int)
-restoreBackupParser.add_argument('-bs', '--bs', help='Define Block Size for DD command. Default 10M', default='10M')
+restoreBackupParser.add_argument('-bs', '--bs', help='Define Block Size for DD command. Default 1M', default='1M')
 restoreBackupParser.add_argument('-sc', '--skipCheck', help='Skip check if disk is used', action='store_true')
 
 def vv_name_wwn(source):
@@ -83,28 +78,12 @@ def _list(one, args):
     # get opennebula image
     image = one.image.info(args.image)
 
-    # get source name and wwn
-    name, wwn = vv_name_wwn(image.SOURCE)
-
     try:
-        result = subprocess.check_output('borg list %s/%s | grep -Po "[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}"' % (config.BACKUP_PATH, image.ID), shell=True).decode('utf-8')
-
-        if args.extended:
-            s = StringIO(result)
-            for line in s:
-                subprocess.check_call('borg info %s/%s::%s' % (config.BACKUP_PATH, image.ID, line), shell=True)
-        else:
-            print(result)
+        result = subprocess.check_output('KOPIA_CHECK_FOR_UPDATES=false KOPIA_PASSWORD="none" kopia repository connect filesystem --readonly --path=%s/%s && kopia snapshot list %s/%s/image' % (config.BACKUP_PATH, image.ID, config.BACKUP_PATH, image.ID), shell=True).decode('utf-8')
+        print(result)
 
     except subprocess.CalledProcessError as ex:
-        raise Exception('Can not list borg backups', ex)
-
-
-def _info(one, args):
-    # get opennebula image
-    image = one.image.info(args.image)
-
-    subprocess.check_call('borg info %s/%s::%s' % (config.BACKUP_PATH, image.ID, args.datetime), shell=True)
+        raise Exception('Can not list kopia backups', ex)
 
 
 def _restore(one, args):
@@ -116,7 +95,7 @@ def _restore(one, args):
     srcImage = one.image.info(args.image)
 
     # validate if given datetime exists
-    subprocess.check_call('borg info %s/%s::%s' % (config.BACKUP_PATH, srcImage.ID, args.datetime), shell=True)
+    subprocess.check_call('KOPIA_PASSWORD="none" kopia snapshot list %s/%s/image | grep %s' % (config.BACKUP_PATH, srcImage.ID, args.snapshotId), shell=True)
 
     if args.targetImage:
         # get info about dest image
@@ -127,9 +106,13 @@ def _restore(one, args):
         if not args.skipCheck and destImage.STATE != 1:
             raise Exception('Target image is not in READY state!')
     elif args.targetDatastore:
-        date, time = split_datetime(args.datetime)
+        datetime = subprocess.check_output(
+            'KOPIA_PASSWORD="none" kopia snapshot list %s/%s/image | grep %s | grep -Po "[0-9]{4}-[0-9]{2}-[0-9]{2}\s[0-9]{2}:[0-9]{2}:[0-9]{2}"' % (
+            config.BACKUP_PATH, srcImage.ID, args.snapshotId), shell=True).decode('utf-8')
+        datetime = datetime.replace(' ', 'T')
+        date, dtime = split_datetime(datetime)
         restoreName = '%s-restore-%s' % (srcImage.NAME, date)
-        destImage = allocateImage(one, restoreName, srcImage, args.datetime, args.targetDatastore)
+        destImage = allocateImage(one, restoreName, srcImage, datetime, args.targetDatastore)
         # get datastore info
         datastore = one.datastore.info(args.targetDatastore)
 
@@ -151,7 +134,7 @@ def _restore(one, args):
     print('Restore volume from backup to exported lun')
     # calculate size
     size = destImage.SIZE * 1024 * 1024
-    subprocess.check_output('set -o pipefail && borg extract --stdout %s/%s::%s | pv -pterab -s %d | dd of=/dev/mapper/3%s bs=%s iflag=fullblock oflag=direct' % (config.BACKUP_PATH, srcImage.ID, args.datetime, size, destWwn, args.bs),
+    subprocess.check_output('set -o pipefail && KOPIA_PASSWORD="none" kopia show %s | pv -pterab -s %d | dd of=/dev/mapper/3%s bs=%s iflag=fullblock oflag=direct' % (args.snapshotId, size, destWwn, args.bs),
                                   shell=True)
 
     # flush volume

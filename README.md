@@ -9,7 +9,7 @@ It backups:
 - non-persistent base images - those which are used to deploy non-persistent VMs
 - persistent images with live snapshoting support
     - when image is attached to VM them live snapshot is created
-    - them image is exported to backup server over Fiber-Channel and backuped using BorgBackup
+    - them image is exported to backup server over Fiber-Channel and backup using Kopia
     - at the end snapshot is deleted
 - system datastores with deployments files - without VM images, which are non-persistent ones
 

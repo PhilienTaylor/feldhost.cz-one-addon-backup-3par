@@ -175,7 +175,7 @@ def backup_live(one, image, vm, vm_disk_id, verbose, bs):
     if verbose:
         logging.info('Backup image now...')
     dev = '/dev/mapper/3%s' % wwn
-    borgbackup(image.ID, dev, image.SIZE, bs)
+    kopiabackup(image.ID, dev, image.SIZE, bs)
 
     # wait a bit before flushing
     time.sleep(10)
@@ -217,7 +217,7 @@ def backup_live(one, image, vm, vm_disk_id, verbose, bs):
     # prune old backups
     if verbose:
         logging.info('Pruning old backups...')
-    borgprune(image.ID)
+    kopiaprune(image.ID)
 
 
 def backup(image, verbose, bs):
@@ -243,7 +243,7 @@ def backup(image, verbose, bs):
     if verbose:
         logging.info('Backup image now...')
     dev = '/dev/mapper/3%s' % wwn
-    borgbackup(image.ID, dev, image.SIZE, bs)
+    kopiabackup(image.ID, dev, image.SIZE, bs)
 
     # wait a bit before flushing
     time.sleep(10)
@@ -264,45 +264,44 @@ def backup(image, verbose, bs):
     # prune old backups
     if verbose:
         logging.info('Pruning old backups...')
-    borgprune(image.ID)
+    kopiaprune(image.ID)
 
 
 def prune(image, verbose):
     # prune old backups
     if verbose:
         logging.info('Pruning old backups...')
-    borgprune(image.ID)
+    kopiaprune(image.ID)
 
 
-def borginit(image_id):
+def kopiainit(image_id):
     try:
-        return subprocess.check_output('borg init -e none %s/%s' % (config.BACKUP_PATH, image_id), shell=True)
+        return subprocess.check_output('KOPIA_PASSWORD="none" kopia repository create filesystem --object-splitter=FIXED-1M --path=%s/%s' % (config.BACKUP_PATH, image_id), shell=True)
     except subprocess.CalledProcessError as ex:
-        raise Exception('Can not init borgbackup repo!', ex)
+        raise Exception('Can not init kopia repo!', ex)
 
+def kopiasetpolicy(image_id):
+    try:
+        return subprocess.check_output('KOPIA_PASSWORD="none" kopia policy set --keep-daily=7 --keep-weekly=4 --keep-monthly=6 %s/%s' % (config.BACKUP_PATH, image_id), shell=True)
+    except subprocess.CalledProcessError as ex:
+        raise Exception('Can not set kopia repo policy!', ex)
 
-def borgbackup(image_id, dev, size_mb, bs):
+def kopiabackup(image_id, dev, size_mb, bs):
     size = size_mb*1024*1024
 
     # check if repo exists
     if not os.path.exists('%s/%s' % (config.BACKUP_PATH, image_id)):
-        borginit(image_id)
+        kopiainit(image_id)
+        kopiasetpolicy(image_id)
 
     try:
-        return subprocess.check_output('set -o pipefail && dd if=%s bs=%s | pv -pterab -s %d | borg create --compression lz4 %s/%s::{now} -' % (dev, bs, size, config.BACKUP_PATH, image_id), shell=True)
+        return subprocess.check_output('set -o pipefail && KOPIA_CHECK_FOR_UPDATES=false KOPIA_PASSWORD="none" kopia repository connect filesystem --path=%s/%s && dd if=%s bs=%s | pv -pterab -s %d | kopia snapshot create %s/%s --stdin-file=image' % (config.BACKUP_PATH, image_id, dev, bs, size, config.BACKUP_PATH, image_id), shell=True)
     except subprocess.CalledProcessError as ex:
-        raise Exception('Can not backup dev using borgbackup!', ex)
+        raise Exception('Can not backup dev using kopia!', ex)
 
 
-def borgprune(image_id):
+def kopiaprune(image_id):
     try:
-        return subprocess.check_output('borg prune -v --list --stats --keep-daily=7 --keep-weekly=4 --keep-monthly=6 %s/%s' % (config.BACKUP_PATH, image_id), shell=True)
+        return subprocess.check_output('KOPIA_PASSWORD="none" kopia snapshot expire %s/%s/image' % (config.BACKUP_PATH, image_id), shell=True)
     except subprocess.CalledProcessError as ex:
-        raise Exception('Can not run borg prune!', ex)
-
-
-def borgbackup_info(image_id):
-    try:
-        return subprocess.check_output('borg info %s/%s' % (config.BACKUP_PATH, image_id), shell=True)
-    except subprocess.CalledProcessError as ex:
-        raise Exception('Can not issue borg info command on repo %s/%s!' % (config.BACKUP_PATH, image_id), ex)
+        raise Exception('Can not run kopia snapshot expire!', ex)
