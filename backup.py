@@ -2,6 +2,9 @@
 
 import logging
 from multiprocessing import Pool
+import subprocess
+
+import config
 import functions
 import globals as g
 
@@ -21,3 +24,7 @@ results = pool.map(functions.backup_image, [image for key, image in sorted(g.ima
 
 pool.close()
 
+# delete old repos, more that half year, which is retention time
+if g.args.verbose:
+    logging.info('Delete repositories more than half-year old...')
+subprocess.check_call('find %s -maxdepth 1 -type d -mtime +183 -exec rm -rf {} \;' % (config.BACKUP_PATH))
